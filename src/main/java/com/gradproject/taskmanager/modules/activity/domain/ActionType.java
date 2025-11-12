@@ -1,0 +1,59 @@
+package com.gradproject.taskmanager.modules.activity.domain;
+
+
+public enum ActionType {
+    
+    CREATED,
+    UPDATED,
+    DELETED,
+
+    
+    STATUS_CHANGED,
+    ASSIGNED,
+    UNASSIGNED,
+    SPRINT_ADDED,
+    SPRINT_REMOVED,
+
+    
+    COMMENT_ADDED,
+    COMMENT_EDITED,
+    COMMENT_DELETED,
+
+    
+    ATTACHMENT_ADDED,
+    ATTACHMENT_DELETED,
+
+    
+    LABEL_ADDED,
+    LABEL_REMOVED,
+
+    
+    WATCHER_ADDED,
+    WATCHER_REMOVED,
+
+    
+    MENTIONED,  
+
+    
+    DUE_DATE_CHANGED,
+    PRIORITY_CHANGED,
+    DESCRIPTION_CHANGED,
+    TITLE_CHANGED,
+
+    
+    DEPENDENCY_ADDED,
+    DEPENDENCY_REMOVED,
+
+    
+    GIT_COMMIT_ADDED,
+    GIT_COMMIT_REMOVED,
+    PR_OPENED,
+    PR_MERGED,
+    PR_CLOSED,
+    PR_UPDATED,
+
+    
+    MEMBER_ADDED,
+    MEMBER_REMOVED,
+    ROLE_CHANGED
+}

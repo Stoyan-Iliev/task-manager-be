@@ -1,0 +1,20 @@
+# Docker Compose configuration for debugging
+# Use this file to run the application with remote debugging enabled
+#
+# Usage:
+#   docker compose -f docker-compose.yml -f docker-compose.debug.yml up -d
+#
+# Or use the provided script:
+#   ./start-debug.sh (Linux/Mac)
+#   start-debug.bat (Windows)
+
+services:
+  app:
+    environment:
+      # Enable remote debugging on port 5005
+      # suspend=n means the application starts immediately without waiting for debugger
+      # suspend=y means the application waits for debugger to attach before starting
+      - JAVA_TOOL_OPTIONS=-agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=*:5005
+    ports:
+      # Expose debug port
+      - "5005:5005"

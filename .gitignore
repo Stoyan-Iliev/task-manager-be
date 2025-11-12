@@ -1,0 +1,30 @@
+# Maven
+/target/
+!.mvn/wrapper/maven-wrapper.jar
+.mvn/
+
+# Gradle (if used later)
+.gradle/
+build/
+
+# IDEs
+*.iml
+.idea/
+.project
+.classpath
+.settings/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+logs/
+*.log
+
+# Java
+hs_err_pid*
+
+
+# Docker volumes
+docker/postgres/data/

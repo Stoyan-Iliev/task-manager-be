@@ -1,0 +1,90 @@
+spring:
+  application:
+    name: jira-backend
+  datasource:
+    url: jdbc:postgresql://localhost:5432/taskmanager
+    driver-class-name: org.postgresql.Driver
+    username: postgres
+    password: postgres
+    hikari:
+      pool-name: TaskManagerHikariPool
+      maximum-pool-size: 10
+      minimum-idle: 5
+      connection-timeout: 30000
+      idle-timeout: 600000
+      max-lifetime: 1800000
+      auto-commit: true
+      connection-test-query: SELECT 1
+      leak-detection-threshold: 60000
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    properties:
+      hibernate:
+        format_sql: true
+        jdbc:
+          time_zone: UTC
+    open-in-view: false
+  flyway:
+    enabled: true
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+
+server:
+  port: 8080
+
+security:
+  jwt:
+    issuer: "http://localhost:8080"
+    audience: ["web"]
+    access-token-ttl: PT15M
+    refresh-token-ttl: P14D
+    clock-skew: PT60S
+    refresh-hmac-secret: <REFRESH_HMAC_SECRET>
+    key:
+      type: pem # pem | keystore
+      pem-public: [] # e.g. ["classpath:jwt/dev-public.pem"]
+      pem-private: [] # e.g. ["classpath:jwt/dev-private.pem"]
+      keystore-location: <CLASSPATH_OR_PATH>
+      keystore-alias: <ALIAS>
+      keystore-password: <KEYSTORE_PASSWORD>
+      current-kid:
+  limits:
+    login-max-per-minute: 5
+    refresh-max-per-minute: 20
+  encryption:
+    # AES-256 encryption key for sensitive data (Git tokens, etc.)
+    # IMPORTANT: Change this in production! Use a strong random key (32+ chars)
+    key: "dev-encryption-key-change-in-production-32chars-minimum"
+
+cors:
+  allowed-origins: ["http://localhost:3000", "http://localhost:5173"]
+  allowed-methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"]
+  allowed-headers: ["Authorization", "Content-Type", "Cache-Control", "Pragma", "X-Requested-With"]
+
+storage:
+  s3:
+    endpoint: http://localhost:9000
+    access-key: minioadmin
+    secret-key: minioadmin123
+    bucket-name: taskmanager-attachments
+    region: us-east-1
+    max-file-size-bytes: 52428800  # 50 MB
+    allowed-mime-types:
+      - image/jpeg
+      - image/png
+      - image/gif
+      - image/webp
+      - application/pdf
+      - application/msword
+      - application/vnd.openxmlformats-officedocument.wordprocessingml.document
+      - application/vnd.ms-excel
+      - application/vnd.openxmlformats-officedocument.spreadsheetml.sheet
+      - text/plain
+      - text/csv
+      - application/json
+      - application/zip

@@ -1,0 +1,37 @@
+spring:
+  config:
+    activate:
+      on-profile: docker
+  datasource:
+    url: jdbc:postgresql://postgres:5432/taskmanager
+    username: postgres
+    password: postgres
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      pool-name: TaskManagerDockerHikariPool
+      maximum-pool-size: 15
+      minimum-idle: 5
+      connection-timeout: 30000
+      idle-timeout: 600000
+      max-lifetime: 1800000
+      auto-commit: true
+      connection-test-query: SELECT 1
+      leak-detection-threshold: 60000
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    properties:
+      hibernate:
+        format_sql: false
+        jdbc:
+          time_zone: UTC
+    open-in-view: false
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+
+security:
+  encryption:
+    # AES-256 encryption key for sensitive data (Git tokens, etc.)
+    # In production, set via environment variable SECURITY_ENCRYPTION_KEY
+    key: "${SECURITY_ENCRYPTION_KEY:docker-dev-encryption-key-change-in-prod-minimum-32-chars}"

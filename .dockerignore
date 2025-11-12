@@ -1,0 +1,19 @@
+# Ignore everything that is not needed for building the image
+.git
+.gitignore
+.idea
+.gradle
+build/
+target/
+logs/
+*.log
+**/.DS_Store
+**/Thumbs.db
+
+# Node artifacts (in case of future fullstack)
+node_modules/
+**/node_modules/
+
+# Local volumes
+Dockerfile*
+docker/

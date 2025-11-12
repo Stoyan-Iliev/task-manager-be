@@ -1,0 +1,39 @@
+spring:
+  datasource:
+    # Testcontainers will dynamically configure these properties
+    # The actual PostgreSQL container URL will be set by @ServiceConnection
+    hikari:
+      pool-name: TaskManagerTestHikariPool
+      maximum-pool-size: 5
+      minimum-idle: 2
+      connection-timeout: 10000
+      idle-timeout: 300000
+      max-lifetime: 600000
+      auto-commit: true
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    properties:
+      hibernate:
+        format_sql: false
+        jdbc:
+          time_zone: UTC
+    open-in-view: false
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+
+# S3/MinIO Storage Configuration (Test Profile)
+storage:
+  s3:
+    endpoint: http://localhost:9000
+    access-key: test-access-key
+    secret-key: test-secret-key
+    bucket-name: test-bucket
+    region: us-east-1
+
+security:
+  encryption:
+    # AES-256 encryption key for sensitive data (Git tokens, etc.)
+    # In production, set via environment variable SECURITY_ENCRYPTION_KEY
+    key: "test-containers-dev-encryption-key-change-in-production-32chars-minimum"
