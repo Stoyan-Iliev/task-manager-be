@@ -57,10 +57,9 @@ public class CommentService {
         
         verifyCanAccessTask(user, task.getProject());
 
-        
         Comment comment = mapper.fromRequest(request);
         comment.setTask(task);
-        comment.setUser(user);
+        comment.setAuthor(user);
 
         
         if (request.isReply()) {
@@ -130,8 +129,7 @@ public class CommentService {
         Comment comment = commentRepository.findById(commentId)
                 .orElseThrow(() -> new ResourceNotFoundException("Comment", commentId));
 
-        
-        if (!comment.getUser().getId().equals(userId)) {
+        if (!comment.getAuthor().getId().equals(userId)) {
             throw new UnauthorizedException("You can only edit your own comments");
         }
 
@@ -151,7 +149,7 @@ public class CommentService {
                         return new CommentResponse(
                                 replyResponse.id(),
                                 replyResponse.taskId(),
-                                mapper.toUserSummary(reply.getUser()),
+                                mapper.toUserSummary(reply.getAuthor()),
                                 replyResponse.parentCommentId(),
                                 replyResponse.content(),
                                 replyResponse.edited(),
@@ -163,11 +161,11 @@ public class CommentService {
                     .collect(Collectors.toList());
         }
 
-        
+
         return new CommentResponse(
                 comment.getId(),
                 comment.getTask().getId(),
-                mapper.toUserSummary(comment.getUser()),
+                mapper.toUserSummary(comment.getAuthor()),
                 comment.getParentComment() != null ? comment.getParentComment().getId() : null,
                 comment.getContent(),
                 comment.getEdited(),
@@ -185,20 +183,20 @@ public class CommentService {
         Comment comment = commentRepository.findById(commentId)
                 .orElseThrow(() -> new ResourceNotFoundException("Comment", commentId));
 
-        
-        if (!comment.getUser().getId().equals(userId)) {
+
+        if (!comment.getAuthor().getId().equals(userId)) {
             throw new UnauthorizedException("You can only delete your own comments");
         }
 
-        
+
         long replyCount = 0;
         if (!comment.isReply()) {
             replyCount = commentRepository.countByParentCommentId(commentId);
         }
 
-        
+
         Task task = comment.getTask();
-        User user = comment.getUser();
+        User user = comment.getAuthor();
 
         
         activityLogService.logCommentDeleted(task, comment, user);
@@ -222,32 +220,32 @@ public class CommentService {
         
         List<Comment> topLevel = commentRepository.findTopLevelCommentsByTaskId(taskId);
 
-        
+
         return topLevel.stream()
                 .map(comment -> {
-                    
+
                     List<CommentResponse> replies = commentRepository
                             .findByParentCommentIdOrderByCreatedAtAsc(comment.getId())
                             .stream()
                             .map(reply -> new CommentResponse(
                                     reply.getId(),
                                     reply.getTask().getId(),
-                                    mapper.toUserSummary(reply.getUser()),
+                                    mapper.toUserSummary(reply.getAuthor()),
                                     reply.getParentComment().getId(),
                                     reply.getContent(),
                                     reply.getEdited(),
                                     reply.getCreatedAt(),
                                     reply.getUpdatedAt(),
-                                    new ArrayList<>()  
+                                    new ArrayList<>()
                             ))
                             .collect(Collectors.toList());
 
-                    
+
                     return new CommentResponse(
                             comment.getId(),
                             comment.getTask().getId(),
-                            mapper.toUserSummary(comment.getUser()),
-                            null,  
+                            mapper.toUserSummary(comment.getAuthor()),
+                            null,
                             comment.getContent(),
                             comment.getEdited(),
                             comment.getCreatedAt(),
@@ -269,7 +267,7 @@ public class CommentService {
 
         verifyCanAccessTask(user, comment.getTask().getProject());
 
-        
+
         List<CommentResponse> replies = new ArrayList<>();
         if (!comment.isReply()) {
             replies = commentRepository.findByParentCommentIdOrderByCreatedAtAsc(commentId)
@@ -277,7 +275,7 @@ public class CommentService {
                     .map(reply -> new CommentResponse(
                             reply.getId(),
                             reply.getTask().getId(),
-                            mapper.toUserSummary(reply.getUser()),
+                            mapper.toUserSummary(reply.getAuthor()),
                             reply.getParentComment().getId(),
                             reply.getContent(),
                             reply.getEdited(),
@@ -291,7 +289,7 @@ public class CommentService {
         return new CommentResponse(
                 comment.getId(),
                 comment.getTask().getId(),
-                mapper.toUserSummary(comment.getUser()),
+                mapper.toUserSummary(comment.getAuthor()),
                 comment.getParentComment() != null ? comment.getParentComment().getId() : null,
                 comment.getContent(),
                 comment.getEdited(),

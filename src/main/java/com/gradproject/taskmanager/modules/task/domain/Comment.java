@@ -14,7 +14,7 @@ import java.time.LocalDateTime;
 @NoArgsConstructor
 @AllArgsConstructor
 @EqualsAndHashCode(of = "id")
-@ToString(exclude = {"task", "user", "parentComment"})
+@ToString(exclude = {"task", "author", "parentComment"})
 public class Comment {
 
     @Id
@@ -26,8 +26,8 @@ public class Comment {
     private Task task;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "user_id", nullable = false)
-    private User user;
+    @JoinColumn(name = "author_id", nullable = false)
+    private User author;
 
     
     @ManyToOne(fetch = FetchType.LAZY)

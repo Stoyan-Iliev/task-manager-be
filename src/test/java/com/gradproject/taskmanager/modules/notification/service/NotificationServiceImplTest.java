@@ -300,7 +300,7 @@ class NotificationServiceImplTest {
         comment.setId(1L);
         comment.setContent("This is a test comment");
         comment.setTask(task);
-        comment.setUser(actor);
+        comment.setAuthor(actor);
 
         TaskWatcher watcher = createWatcher(user1);
         when(watcherRepo.findByTaskId(1L)).thenReturn(List.of(watcher));
@@ -324,7 +324,7 @@ class NotificationServiceImplTest {
         comment.setId(1L);
         comment.setContent("A".repeat(150)); 
         comment.setTask(task);
-        comment.setUser(actor);
+        comment.setAuthor(actor);
 
         TaskWatcher watcher = createWatcher(user1);
         when(watcherRepo.findByTaskId(1L)).thenReturn(List.of(watcher));
@@ -347,7 +347,7 @@ class NotificationServiceImplTest {
         comment.setId(1L);
         comment.setContent("Hey @user1, check this out!");
         comment.setTask(task);
-        comment.setUser(actor);
+        comment.setAuthor(actor);
 
         Set<String> mentions = Set.of("user1");
         when(userRepo.findByUsername("user1")).thenReturn(Optional.of(user1));
@@ -371,7 +371,7 @@ class NotificationServiceImplTest {
         comment.setId(1L);
         comment.setContent("I'm @actor mentioning myself");
         comment.setTask(task);
-        comment.setUser(actor);
+        comment.setAuthor(actor);
 
         Set<String> mentions = Set.of("actor");
         when(userRepo.findByUsername("actor")).thenReturn(Optional.of(actor));
@@ -390,7 +390,7 @@ class NotificationServiceImplTest {
         comment.setId(1L);
         comment.setContent("@nonexistent user");
         comment.setTask(task);
-        comment.setUser(actor);
+        comment.setAuthor(actor);
 
         Set<String> mentions = Set.of("nonexistent");
         when(userRepo.findByUsername("nonexistent")).thenReturn(Optional.empty());

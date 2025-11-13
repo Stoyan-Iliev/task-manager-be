@@ -21,5 +21,11 @@ public record SignUpRequest(
         regexp = "^(?=.*[a-z])(?=.*[A-Z])(?=.*\\d).{8,100}$",
         message = "Password must be 8-100 characters and include upper, lower, and digit"
     )
-    String password
+    String password,
+
+    @Size(max = 50)
+    String firstName,
+
+    @Size(max = 50)
+    String lastName
 ) {}

@@ -36,8 +36,8 @@ class AuthControllerWebTests extends AbstractIntegrationTest {
 
     private String toJson(Object o) throws Exception { return objectMapper.writeValueAsString(o); }
 
-    private String signupUser(String username, String email, String password) throws Exception {
-        SignUpRequest req = new SignUpRequest(username, email, password);
+    private String signupUser(String username, String email, String password, String firstName, String lastName) throws Exception {
+        SignUpRequest req = new SignUpRequest(username, email, password, firstName, lastName);
         mockMvc.perform(post("/api/auth/signup")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(toJson(req)))
@@ -60,7 +60,7 @@ class AuthControllerWebTests extends AbstractIntegrationTest {
     @Test
     @Transactional
     void signup_success_and_login_returns_tokens() throws Exception {
-        signupUser("webuser1", "webuser1@example.com", "StrongPass1");
+        signupUser("webuser1", "webuser1@example.com", "StrongPass1", "web", "user");
         JsonNode body = login("webuser1", "StrongPass1");
         assertThat(body.get("accessToken").asText()).isNotBlank();
         assertThat(body.get("refreshToken").asText()).isNotBlank();
@@ -72,8 +72,8 @@ class AuthControllerWebTests extends AbstractIntegrationTest {
     @Test
     @Transactional
     void signup_conflict_when_username_taken() throws Exception {
-        signupUser("taken", "t1@example.com", "StrongPass1");
-        SignUpRequest req = new SignUpRequest("taken", "t2@example.com", "StrongPass1");
+        signupUser("taken", "t1@example.com", "StrongPass1", "taken", "t1");
+        SignUpRequest req = new SignUpRequest("taken", "t2@example.com", "StrongPass1", "taken", "t2");
         mockMvc.perform(post("/api/auth/signup")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(toJson(req)))
@@ -83,7 +83,7 @@ class AuthControllerWebTests extends AbstractIntegrationTest {
 
     @Test
     void signup_validation_error() throws Exception {
-        SignUpRequest req = new SignUpRequest("a", "not-an-email", "weak"); 
+        SignUpRequest req = new SignUpRequest("a", "not-an-email", "weak", "a", "b");
         mockMvc.perform(post("/api/auth/signup")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(toJson(req)))
@@ -104,7 +104,7 @@ class AuthControllerWebTests extends AbstractIntegrationTest {
     @Test
     @Transactional
     void refresh_rotate_and_reuse_fails() throws Exception {
-        signupUser("rotator", "rotator@example.com", "StrongPass1");
+        signupUser("rotator", "rotator@example.com", "StrongPass1", "rotator", "rotatorLast");
         JsonNode login = login("rotator", "StrongPass1");
         String refresh1 = login.get("refreshToken").asText();
 
@@ -132,7 +132,7 @@ class AuthControllerWebTests extends AbstractIntegrationTest {
     @Test
     @Transactional
     void refresh_expired_token_returns_401() throws Exception {
-        signupUser("expiree", "expiree@example.com", "StrongPass1");
+        signupUser("expiree", "expiree@example.com", "StrongPass1", "expiree", "expireeLast");
         JsonNode login = login("expiree", "StrongPass1");
         String refresh = login.get("refreshToken").asText();
         
@@ -154,7 +154,7 @@ class AuthControllerWebTests extends AbstractIntegrationTest {
     @Test
     @Transactional
     void logout_revokes_token() throws Exception {
-        signupUser("logoutter", "logoutter@example.com", "StrongPass1");
+        signupUser("logoutter", "logoutter@example.com", "StrongPass1", "logoutter", "logoutterLast");
         JsonNode login = login("logoutter", "StrongPass1");
         String refresh = login.get("refreshToken").asText();
         mockMvc.perform(post("/api/auth/logout")

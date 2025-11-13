@@ -10,5 +10,12 @@ public record TokenResponse(
         String scope,
         UserInfo user
 ) {
-    public record UserInfo(Integer id, String username, List<String> roles) {}
+    public record UserInfo(
+        Integer id,
+        String username,
+        String firstName,
+        String lastName,
+        String avatarUrl,
+        List<String> roles
+    ) {}
 }

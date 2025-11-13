@@ -54,6 +54,12 @@ public class AuthService {
 
         String hashed = passwordEncoder.encode(request.password());
         User user = new User(username, email, hashed);
+        if (request.firstName() != null && !request.firstName().isBlank()) {
+            user.setFirstName(request.firstName().trim());
+        }
+        if (request.lastName() != null && !request.lastName().isBlank()) {
+            user.setLastName(request.lastName().trim());
+        }
         User saved = userRepository.save(user);
         return toResponse(saved);
     }
@@ -88,6 +94,9 @@ public class AuthService {
                 user.getId(),
                 user.getUsername(),
                 user.getEmail(),
+                user.getFirstName(),
+                user.getLastName(),
+                user.getAvatarUrl(),
                 user.getCreatedAt() != null ? user.getCreatedAt().toString() : null,
                 user.getUpdatedAt() != null ? user.getUpdatedAt().toString() : null
         );
@@ -95,7 +104,14 @@ public class AuthService {
 
     private TokenResponse toTokenResponse(User user, String access, String refresh) {
         List<String> roles = user.getRoles().stream().map(Role::getName).collect(Collectors.toList());
-        TokenResponse.UserInfo info = new TokenResponse.UserInfo(user.getId(), user.getUsername(), roles);
+        TokenResponse.UserInfo info = new TokenResponse.UserInfo(
+                user.getId(),
+                user.getUsername(),
+                user.getFirstName(),
+                user.getLastName(),
+                user.getAvatarUrl(),
+                roles
+        );
         String scope = String.join(" ", roles);
         return new TokenResponse(access, refresh, "bearer", jwtTokenService.getAccessTokenExpiresInSeconds(), scope, info);
     }

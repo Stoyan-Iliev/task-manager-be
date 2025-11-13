@@ -45,6 +45,9 @@ public interface ProjectMapper {
     @Mapping(target = "userId", source = "user.id")
     @Mapping(target = "username", source = "user.username")
     @Mapping(target = "email", source = "user.email")
+    @Mapping(target = "firstName", source = "user.firstName")
+    @Mapping(target = "lastName", source = "user.lastName")
+    @Mapping(target = "avatarUrl", source = "user.avatarUrl")
     @Mapping(target = "addedByUsername", source = "addedBy.username")
     ProjectMemberResponse toMemberResponse(ProjectMember member);
 

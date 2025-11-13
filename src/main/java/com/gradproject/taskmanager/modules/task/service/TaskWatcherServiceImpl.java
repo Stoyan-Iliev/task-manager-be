@@ -178,7 +178,10 @@ public class TaskWatcherServiceImpl implements TaskWatcherService {
             .map(tw -> new UserSummary(
                 tw.getUser().getId(),
                 tw.getUser().getUsername(),
-                tw.getUser().getEmail()
+                tw.getUser().getEmail(),
+                tw.getUser().getFirstName(),
+                tw.getUser().getLastName(),
+                tw.getUser().getAvatarUrl()
             ))
             .collect(Collectors.toList());
     }
@@ -325,7 +328,10 @@ public class TaskWatcherServiceImpl implements TaskWatcherService {
             task.getAssignee() != null ? new UserSummary(
                 task.getAssignee().getId(),
                 task.getAssignee().getUsername(),
-                task.getAssignee().getEmail()
+                task.getAssignee().getEmail(),
+                task.getAssignee().getFirstName(),
+                task.getAssignee().getLastName(),
+                task.getAssignee().getAvatarUrl()
             ) : null,
             task.getDueDate(),
             task.getUpdatedAt()

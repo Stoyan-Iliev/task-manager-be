@@ -9,13 +9,13 @@ import java.util.List;
 public record CommentResponse(
         Long id,
         Long taskId,
-        UserSummary user,
+        UserSummary author,
         Long parentCommentId,
         String content,
         Boolean edited,
         LocalDateTime createdAt,
         LocalDateTime updatedAt,
-        List<CommentResponse> replies  
+        List<CommentResponse> replies
 ) {
     
     public boolean isReply() {

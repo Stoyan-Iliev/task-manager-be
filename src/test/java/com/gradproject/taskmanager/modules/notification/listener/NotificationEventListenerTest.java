@@ -518,7 +518,7 @@ class NotificationEventListenerTest {
         comment.setId(1L);
         comment.setContent(content);
         comment.setTask(task);
-        comment.setUser(actor);
+        comment.setAuthor(actor);
         comment.setCreatedAt(LocalDateTime.now());
         return comment;
     }

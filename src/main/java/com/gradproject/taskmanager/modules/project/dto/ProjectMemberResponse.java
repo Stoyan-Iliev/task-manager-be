@@ -10,6 +10,9 @@ public record ProjectMemberResponse(
     Integer userId,
     String username,
     String email,
+    String firstName,
+    String lastName,
+    String avatarUrl,
     ProjectRole role,
     LocalDateTime addedAt,
     String addedByUsername

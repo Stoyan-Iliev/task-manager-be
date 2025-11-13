@@ -23,5 +23,8 @@ public interface ActivityLogMapper {
     @Mapping(source = "id", target = "id")
     @Mapping(source = "username", target = "username")
     @Mapping(source = "email", target = "email")
+    @Mapping(source = "firstName", target = "firstName")
+    @Mapping(source = "lastName", target = "lastName")
+    @Mapping(source = "avatarUrl", target = "avatarUrl")
     UserSummary toUserSummary(com.gradproject.taskmanager.modules.auth.domain.User user);
 }

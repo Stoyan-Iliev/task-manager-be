@@ -33,11 +33,11 @@ public interface CommentRepository extends JpaRepository<Comment, Long> {
     long countByParentCommentId(Long parentCommentId);
 
     
-    List<Comment> findByUserIdOrderByCreatedAtDesc(Integer userId);
+    List<Comment> findByAuthorIdOrderByCreatedAtDesc(Integer authorId);
 
     
     void deleteByTaskId(Long taskId);
 
     
-    boolean existsByIdAndUserId(Long commentId, Integer userId);
+    boolean existsByIdAndAuthorId(Long commentId, Integer authorId);
 }

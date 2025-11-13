@@ -42,7 +42,7 @@ class OrganizationControllerIT extends AbstractIntegrationTest {
         String username = "orgtest" + System.currentTimeMillis();
         String email = "orgtest" + System.currentTimeMillis() + "@example.com";
 
-        SignUpRequest signUpRequest = new SignUpRequest(username, email, "Password123");
+        SignUpRequest signUpRequest = new SignUpRequest(username, email, "Password123", "org", "test");
 
         mockMvc.perform(post("/api/auth/signup")
                         .contentType(MediaType.APPLICATION_JSON)

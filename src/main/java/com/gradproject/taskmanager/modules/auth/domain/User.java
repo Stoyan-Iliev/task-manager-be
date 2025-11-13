@@ -33,6 +33,39 @@ public class User {
     @Column(nullable = false)
     private boolean locked = false;
 
+    @Column(name = "first_name", length = 50)
+    private String firstName;
+
+    @Column(name = "last_name", length = 50)
+    private String lastName;
+
+    @Column(name = "avatar_url", length = 500)
+    private String avatarUrl;
+
+    @Column(name = "job_title", length = 100)
+    private String jobTitle;
+
+    @Column(name = "department", length = 100)
+    private String department;
+
+    @Column(length = 20)
+    private String phone;
+
+    @Column(length = 50)
+    private String timezone = "UTC";
+
+    @Column(length = 10)
+    private String language = "en";
+
+    @Column(name = "date_format", length = 20)
+    private String dateFormat = "MM/DD/YYYY";
+
+    @Column(name = "time_format", length = 10)
+    private String timeFormat = "12h";
+
+    @Column(columnDefinition = "TEXT")
+    private String bio;
+
     @ManyToMany(fetch = FetchType.EAGER)
     @JoinTable(
             name = "user_roles",

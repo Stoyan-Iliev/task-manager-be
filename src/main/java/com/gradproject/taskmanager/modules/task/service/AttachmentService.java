@@ -224,7 +224,7 @@ public class AttachmentService {
                 attachment.getFormattedFileSize(),
                 attachment.getStoragePath(),
                 attachment.getThumbnailPath(),
-                new UserSummary(uploadedBy.getId(), uploadedBy.getUsername(), uploadedBy.getEmail()),
+                new UserSummary(uploadedBy.getId(), uploadedBy.getUsername(), uploadedBy.getEmail(), uploadedBy.getFirstName(), uploadedBy.getLastName(), uploadedBy.getAvatarUrl()),
                 attachment.getUploadedAt(),
                 attachment.isImage(),
                 attachment.hasThumbnail()

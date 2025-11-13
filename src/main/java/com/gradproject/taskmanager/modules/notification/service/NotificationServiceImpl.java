@@ -256,7 +256,10 @@ public class NotificationServiceImpl implements NotificationService {
                 new UserSummary(
                         notification.getActor().getId(),
                         notification.getActor().getUsername(),
-                        notification.getActor().getEmail()
+                        notification.getActor().getEmail(),
+                        notification.getActor().getFirstName(),
+                        notification.getActor().getLastName(),
+                        notification.getActor().getAvatarUrl()
                 ) : null;
 
         return new NotificationResponse(

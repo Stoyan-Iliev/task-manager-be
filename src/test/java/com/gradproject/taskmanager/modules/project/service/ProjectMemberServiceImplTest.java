@@ -99,6 +99,9 @@ class ProjectMemberServiceImplTest {
                 2,
                 "targetuser",
                 "target@example.com",
+                "Target",
+                "User",
+                null,
                 ProjectRole.PROJECT_MEMBER,
                 LocalDateTime.now(),
                 "testuser"
