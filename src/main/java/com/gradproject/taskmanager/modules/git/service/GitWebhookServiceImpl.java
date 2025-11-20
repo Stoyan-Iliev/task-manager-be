@@ -1,5 +1,7 @@
 package com.gradproject.taskmanager.modules.git.service;
 
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.gradproject.taskmanager.modules.auth.domain.User;
 import com.gradproject.taskmanager.modules.auth.repository.UserRepository;
 import com.gradproject.taskmanager.modules.git.domain.GitIntegration;
@@ -10,12 +12,15 @@ import com.gradproject.taskmanager.modules.git.repository.GitWebhookEventReposit
 import com.gradproject.taskmanager.shared.exception.ResourceNotFoundException;
 import com.gradproject.taskmanager.shared.exception.UnauthorizedException;
 import com.gradproject.taskmanager.shared.security.PermissionService;
+import com.gradproject.taskmanager.shared.util.TokenEncryptionService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
@@ -36,77 +41,156 @@ public class GitWebhookServiceImpl implements GitWebhookService {
     private final GitIntegrationRepository gitIntegrationRepository;
     private final UserRepository userRepository;
     private final PermissionService permissionService;
+    private final TokenEncryptionService encryptionService;
+    private final ObjectMapper objectMapper;
+    private final GitWebhookProcessor webhookProcessor;
 
     @Override
     @Transactional
-    public GitWebhookEvent processGitHubWebhook(String eventType, String signature, Map<String, Object> payload) {
+    public GitWebhookEvent processGitHubWebhook(String eventType, String signature, String payloadString) {
         log.info("Received GitHub webhook event: {}", eventType);
 
-        
-        String repositoryUrl = extractRepositoryUrl(payload);
-        Optional<GitIntegration> integration = gitIntegrationRepository.findByRepositoryUrl(repositoryUrl);
+        try {
+            // Parse JSON payload
+            Map<String, Object> payload = objectMapper.readValue(payloadString, new TypeReference<Map<String, Object>>() {});
 
-        GitWebhookEvent event = new GitWebhookEvent(GitProvider.GITHUB, eventType, payload);
-        event.setSignature(signature);
+            // Extract repository URL to find matching integration
+            String repositoryUrl = extractRepositoryUrl(payload);
+            Optional<GitIntegration> integration = gitIntegrationRepository.findByRepositoryUrl(repositoryUrl);
 
-        if (integration.isPresent()) {
-            event.setGitIntegration(integration.get());
+            GitWebhookEvent event = new GitWebhookEvent(GitProvider.GITHUB, eventType, payload);
+            event.setSignature(signature);
 
-            
-            String webhookSecret = integration.get().getWebhookSecretEncrypted();
-            if (webhookSecret != null) {
-                
-                log.debug("GitHub webhook signature validation not yet implemented");
+            if (integration.isPresent()) {
+                event.setGitIntegration(integration.get());
+
+                // Validate webhook signature if secret is configured
+                String webhookSecret = integration.get().getWebhookSecretEncrypted();
+                if (webhookSecret != null && !webhookSecret.isEmpty()) {
+                    try {
+                        // Decrypt the secret
+                        String decryptedSecret = encryptionService.decryptIfNeeded(webhookSecret);
+
+                        // Validate signature
+                        if (signature == null || !validateGitHubSignature(payloadString, signature, decryptedSecret)) {
+                            log.warn("Invalid GitHub webhook signature for repository: {}", repositoryUrl);
+                            event.setProcessingError("Invalid webhook signature");
+                            return webhookEventRepository.save(event);
+                        }
+
+                        log.debug("GitHub webhook signature validated successfully");
+                    } catch (Exception e) {
+                        log.error("Error validating GitHub webhook signature", e);
+                        event.setProcessingError("Error validating signature: " + e.getMessage());
+                        return webhookEventRepository.save(event);
+                    }
+                }
+            } else {
+                log.warn("No integration found for repository: {}", repositoryUrl);
+                event.setProcessingError("No integration found for repository");
             }
-        } else {
-            log.warn("No integration found for repository: {}", repositoryUrl);
+
+            // Save webhook event for audit trail
+            GitWebhookEvent saved = webhookEventRepository.save(event);
+
+            // Schedule async processing after transaction commits
+            Long eventId = saved.getId();
+            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                @Override
+                public void afterCommit() {
+                    // Pass a lightweight event object with just the ID
+                    GitWebhookEvent eventRef = new GitWebhookEvent();
+                    eventRef.setId(eventId);
+                    webhookProcessor.processWebhookEvent(eventRef);
+                }
+            });
+
+            return saved;
+
+        } catch (Exception e) {
+            log.error("Error parsing GitHub webhook payload", e);
+            // Create event with error
+            GitWebhookEvent errorEvent = new GitWebhookEvent(GitProvider.GITHUB, eventType, Map.of("error", "Failed to parse payload"));
+            errorEvent.setSignature(signature);
+            errorEvent.setProcessingError("Failed to parse payload: " + e.getMessage());
+            return webhookEventRepository.save(errorEvent);
         }
-
-        
-        GitWebhookEvent saved = webhookEventRepository.save(event);
-
-        
-        
-
-        return saved;
     }
 
     @Override
     @Transactional
-    public GitWebhookEvent processGitLabWebhook(String eventType, String token, Map<String, Object> payload) {
+    public GitWebhookEvent processGitLabWebhook(String eventType, String token, String payloadString) {
         log.info("Received GitLab webhook event: {}", eventType);
 
-        
-        String repositoryUrl = extractRepositoryUrl(payload);
-        Optional<GitIntegration> integration = gitIntegrationRepository.findByRepositoryUrl(repositoryUrl);
+        try {
+            // Parse JSON payload
+            Map<String, Object> payload = objectMapper.readValue(payloadString, new TypeReference<Map<String, Object>>() {});
 
-        
-        String eventAction = extractEventAction(payload);
+            // Extract repository URL to find matching integration
+            String repositoryUrl = extractRepositoryUrl(payload);
+            Optional<GitIntegration> integration = gitIntegrationRepository.findByRepositoryUrl(repositoryUrl);
 
-        GitWebhookEvent event = new GitWebhookEvent(GitProvider.GITLAB, eventType, payload);
-        event.setEventAction(eventAction);
-        event.setSignature(token);
+            // Extract event action (e.g., "open", "merge", etc.)
+            String eventAction = extractEventAction(payload);
 
-        if (integration.isPresent()) {
-            event.setGitIntegration(integration.get());
+            GitWebhookEvent event = new GitWebhookEvent(GitProvider.GITLAB, eventType, payload);
+            event.setEventAction(eventAction);
+            event.setSignature(token);
 
-            
-            String webhookSecret = integration.get().getWebhookSecretEncrypted();
-            if (webhookSecret != null && !webhookSecret.equals(token)) {
-                log.warn("Invalid GitLab webhook token for repository: {}", repositoryUrl);
-                event.setProcessingError("Invalid webhook token");
-                return webhookEventRepository.save(event);
+            if (integration.isPresent()) {
+                event.setGitIntegration(integration.get());
+
+                // Validate webhook token if secret is configured
+                String webhookSecret = integration.get().getWebhookSecretEncrypted();
+                if (webhookSecret != null && !webhookSecret.isEmpty()) {
+                    try {
+                        // Decrypt the secret
+                        String decryptedSecret = encryptionService.decryptIfNeeded(webhookSecret);
+
+                        // Validate token
+                        if (token == null || !validateGitLabToken(token, decryptedSecret)) {
+                            log.warn("Invalid GitLab webhook token for repository: {}", repositoryUrl);
+                            event.setProcessingError("Invalid webhook token");
+                            return webhookEventRepository.save(event);
+                        }
+
+                        log.debug("GitLab webhook token validated successfully");
+                    } catch (Exception e) {
+                        log.error("Error validating GitLab webhook token", e);
+                        event.setProcessingError("Error validating token: " + e.getMessage());
+                        return webhookEventRepository.save(event);
+                    }
+                }
+            } else {
+                log.warn("No integration found for repository: {}", repositoryUrl);
+                event.setProcessingError("No integration found for repository");
             }
-        } else {
-            log.warn("No integration found for repository: {}", repositoryUrl);
+
+            // Save webhook event for audit trail
+            GitWebhookEvent saved = webhookEventRepository.save(event);
+
+            // Schedule async processing after transaction commits
+            Long eventId = saved.getId();
+            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                @Override
+                public void afterCommit() {
+                    // Pass a lightweight event object with just the ID
+                    GitWebhookEvent eventRef = new GitWebhookEvent();
+                    eventRef.setId(eventId);
+                    webhookProcessor.processWebhookEvent(eventRef);
+                }
+            });
+
+            return saved;
+
+        } catch (Exception e) {
+            log.error("Error parsing GitLab webhook payload", e);
+            // Create event with error
+            GitWebhookEvent errorEvent = new GitWebhookEvent(GitProvider.GITLAB, eventType, Map.of("error", "Failed to parse payload"));
+            errorEvent.setSignature(token);
+            errorEvent.setProcessingError("Failed to parse payload: " + e.getMessage());
+            return webhookEventRepository.save(errorEvent);
         }
-
-        
-        GitWebhookEvent saved = webhookEventRepository.save(event);
-
-        
-
-        return saved;
     }
 
     @Override
@@ -172,7 +256,8 @@ public class GitWebhookServiceImpl implements GitWebhookService {
 
         GitWebhookEvent updated = webhookEventRepository.save(event);
 
-        
+        // Trigger retry processing asynchronously
+        webhookProcessor.retryWebhookEvent(updated);
 
         return updated;
     }
@@ -205,8 +290,6 @@ public class GitWebhookServiceImpl implements GitWebhookService {
 
     
     private String extractRepositoryUrl(Map<String, Object> payload) {
-        
-        
 
         if (payload.containsKey("repository")) {
             @SuppressWarnings("unchecked")

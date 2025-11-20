@@ -18,23 +18,24 @@ import java.util.Map;
 
 @Slf4j
 @RestController
-@RequestMapping("/api/secure/git/webhook")
 @RequiredArgsConstructor
 public class GitWebhookController {
 
     private final GitWebhookService gitWebhookService;
 
-    
-    @PostMapping("/github")
+    // Public webhook endpoints for GitHub/GitLab to call without authentication
+    @PostMapping("/api/public/webhooks/github")
     public ResponseEntity<Map<String, String>> handleGitHubWebhook(
             @RequestHeader("X-GitHub-Event") String eventType,
             @RequestHeader(value = "X-Hub-Signature-256", required = false) String signature,
-            @RequestBody Map<String, Object> payload) {
+            @RequestHeader(value = "X-GitHub-Delivery", required = false) String deliveryId,
+            @RequestBody String payloadString) {
 
-        log.info("Received GitHub webhook: event={}, signature={}", eventType, signature != null ? "present" : "missing");
+        log.info("Received GitHub webhook: event={}, delivery={}, signature={}",
+                eventType, deliveryId, signature != null ? "present" : "missing");
 
         try {
-            gitWebhookService.processGitHubWebhook(eventType, signature, payload);
+            gitWebhookService.processGitHubWebhook(eventType, signature, payloadString);
             return ResponseEntity.ok(Map.of("status", "received"));
         } catch (Exception e) {
             log.error("Error processing GitHub webhook", e);
@@ -43,17 +44,17 @@ public class GitWebhookController {
         }
     }
 
-    
-    @PostMapping("/gitlab")
+    // Public webhook endpoints for GitHub/GitLab to call without authentication
+    @PostMapping("/api/public/webhooks/gitlab")
     public ResponseEntity<Map<String, String>> handleGitLabWebhook(
             @RequestHeader("X-Gitlab-Event") String eventType,
             @RequestHeader(value = "X-Gitlab-Token", required = false) String token,
-            @RequestBody Map<String, Object> payload) {
+            @RequestBody String payloadString) {
 
         log.info("Received GitLab webhook: event={}, token={}", eventType, token != null ? "present" : "missing");
 
         try {
-            gitWebhookService.processGitLabWebhook(eventType, token, payload);
+            gitWebhookService.processGitLabWebhook(eventType, token, payloadString);
             return ResponseEntity.ok(Map.of("status", "received"));
         } catch (Exception e) {
             log.error("Error processing GitLab webhook", e);
@@ -62,8 +63,8 @@ public class GitWebhookController {
         }
     }
 
-    
-    @GetMapping("/events")
+    // Secured webhook management endpoints
+    @GetMapping("/api/secure/git/webhook/events")
     public ResponseEntity<ApiResponse<Page<GitWebhookEvent>>> getWebhookEvents(
             @RequestParam Long integrationId,
             @PageableDefault(size = 20, sort = "receivedAt") Pageable pageable) {
@@ -72,16 +73,14 @@ public class GitWebhookController {
         return ResponseEntity.ok(ApiResponse.success(events));
     }
 
-    
-    @GetMapping("/events/{eventId}")
+    @GetMapping("/api/secure/git/webhook/events/{eventId}")
     public ResponseEntity<ApiResponse<GitWebhookEvent>> getWebhookEvent(@PathVariable Long eventId) {
         Integer userId = SecurityUtils.getCurrentUserId();
         GitWebhookEvent event = gitWebhookService.getWebhookEvent(eventId, userId);
         return ResponseEntity.ok(ApiResponse.success(event));
     }
 
-    
-    @PostMapping("/events/{eventId}/retry")
+    @PostMapping("/api/secure/git/webhook/events/{eventId}/retry")
     public ResponseEntity<ApiResponse<GitWebhookEvent>> retryWebhookEvent(@PathVariable Long eventId) {
         Integer userId = SecurityUtils.getCurrentUserId();
         GitWebhookEvent event = gitWebhookService.retryWebhookEvent(eventId, userId);

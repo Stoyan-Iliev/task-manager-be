@@ -34,4 +34,6 @@ public interface GitPullRequestRepository extends JpaRepository<GitPullRequest, 
     long countByProjectAndStatus(@Param("projectId") Long projectId, @Param("status") PullRequestStatus status);
 
     Long countByGitIntegrationId(Long integrationId);
+
+    Optional<GitPullRequest> findByGitIntegrationIdAndSourceBranch(Long integrationId, String sourceBranch);
 }

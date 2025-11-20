@@ -1,5 +1,7 @@
 package com.gradproject.taskmanager.modules.git.service;
 
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.gradproject.taskmanager.modules.auth.domain.User;
 import com.gradproject.taskmanager.modules.auth.repository.UserRepository;
 import com.gradproject.taskmanager.modules.git.domain.GitIntegration;
@@ -31,7 +33,7 @@ import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
 
@@ -50,6 +52,15 @@ class GitWebhookServiceImplTest {
     @Mock
     private PermissionService permissionService;
 
+    @Mock
+    private com.gradproject.taskmanager.shared.util.TokenEncryptionService encryptionService;
+
+    @Mock
+    private com.fasterxml.jackson.databind.ObjectMapper mockObjectMapper;
+
+    @Mock
+    private GitWebhookProcessor webhookProcessor;
+
     @InjectMocks
     private GitWebhookServiceImpl gitWebhookService;
 
@@ -59,27 +70,30 @@ class GitWebhookServiceImplTest {
     private GitIntegration gitIntegration;
     private GitWebhookEvent webhookEvent;
     private Map<String, Object> payload;
+    private String payloadString;
+    private ObjectMapper objectMapper;
 
     @BeforeEach
-    void setUp() {
-        
+    void setUp() throws Exception {
+        objectMapper = new ObjectMapper();
+
         user = new User();
         user.setId(1);
         user.setUsername("testuser");
         user.setEmail("test@example.com");
 
-        
+
         organization = new Organization();
         organization.setId(1L);
         organization.setName("Test Org");
 
-        
+
         project = new Project();
         project.setId(1L);
         project.setName("Test Project");
         project.setOrganization(organization);
 
-        
+
         gitIntegration = new GitIntegration();
         gitIntegration.setId(1L);
         gitIntegration.setProvider(GitProvider.GITHUB);
@@ -88,7 +102,7 @@ class GitWebhookServiceImplTest {
         gitIntegration.setProject(project);
         gitIntegration.setWebhookSecretEncrypted("test-secret");
 
-        
+
         webhookEvent = new GitWebhookEvent();
         webhookEvent.setId(1L);
         webhookEvent.setProvider(GitProvider.GITHUB);
@@ -98,25 +112,36 @@ class GitWebhookServiceImplTest {
         webhookEvent.setRetryCount(0);
         webhookEvent.setReceivedAt(LocalDateTime.now());
 
-        
+
         payload = new HashMap<>();
         Map<String, Object> repository = new HashMap<>();
         repository.put("html_url", "https://github.com/test/repo");
         payload.put("repository", repository);
+
+        // Convert payload Map to JSON String
+        payloadString = objectMapper.writeValueAsString(payload);
+
+        // Configure mock ObjectMapper to parse the JSON string back to Map (lenient for tests that don't use it)
+        lenient().when(mockObjectMapper.readValue(eq(payloadString), any(TypeReference.class)))
+            .thenReturn(payload);
+
+        // Configure encryption service to return decrypted secret (lenient for tests that don't use it)
+        lenient().when(encryptionService.decryptIfNeeded(anyString()))
+            .thenAnswer(invocation -> invocation.getArgument(0));
     }
 
     @Test
     void processGitHubWebhook_Success() {
-        
+
         when(gitIntegrationRepository.findByRepositoryUrl("https://github.com/test/repo"))
             .thenReturn(Optional.of(gitIntegration));
         when(webhookEventRepository.save(any(GitWebhookEvent.class)))
             .thenAnswer(i -> i.getArgument(0));
 
-        
-        GitWebhookEvent result = gitWebhookService.processGitHubWebhook("push", "sha256=abc123", payload);
 
-        
+        GitWebhookEvent result = gitWebhookService.processGitHubWebhook("push", "sha256=abc123", payloadString);
+
+
         assertThat(result).isNotNull();
         assertThat(result.getProvider()).isEqualTo(GitProvider.GITHUB);
         assertThat(result.getEventType()).isEqualTo("push");
@@ -125,16 +150,16 @@ class GitWebhookServiceImplTest {
 
     @Test
     void processGitHubWebhook_NoIntegrationFound() {
-        
+
         when(gitIntegrationRepository.findByRepositoryUrl("https://github.com/test/repo"))
             .thenReturn(Optional.empty());
         when(webhookEventRepository.save(any(GitWebhookEvent.class)))
             .thenAnswer(i -> i.getArgument(0));
 
-        
-        GitWebhookEvent result = gitWebhookService.processGitHubWebhook("push", "sha256=abc123", payload);
 
-        
+        GitWebhookEvent result = gitWebhookService.processGitHubWebhook("push", "sha256=abc123", payloadString);
+
+
         assertThat(result).isNotNull();
         assertThat(result.getGitIntegration()).isNull();
         verify(webhookEventRepository).save(any(GitWebhookEvent.class));
@@ -142,16 +167,16 @@ class GitWebhookServiceImplTest {
 
     @Test
     void processGitLabWebhook_Success() {
-        
+
         when(gitIntegrationRepository.findByRepositoryUrl("https://github.com/test/repo"))
             .thenReturn(Optional.of(gitIntegration));
         when(webhookEventRepository.save(any(GitWebhookEvent.class)))
             .thenAnswer(i -> i.getArgument(0));
 
-        
-        GitWebhookEvent result = gitWebhookService.processGitLabWebhook("push", "test-secret", payload);
 
-        
+        GitWebhookEvent result = gitWebhookService.processGitLabWebhook("push", "test-secret", payloadString);
+
+
         assertThat(result).isNotNull();
         assertThat(result.getProvider()).isEqualTo(GitProvider.GITLAB);
         assertThat(result.getEventType()).isEqualTo("push");
@@ -160,16 +185,16 @@ class GitWebhookServiceImplTest {
 
     @Test
     void processGitLabWebhook_InvalidToken() {
-        
+
         when(gitIntegrationRepository.findByRepositoryUrl("https://github.com/test/repo"))
             .thenReturn(Optional.of(gitIntegration));
         when(webhookEventRepository.save(any(GitWebhookEvent.class)))
             .thenAnswer(i -> i.getArgument(0));
 
-        
-        GitWebhookEvent result = gitWebhookService.processGitLabWebhook("push", "invalid-token", payload);
 
-        
+        GitWebhookEvent result = gitWebhookService.processGitLabWebhook("push", "invalid-token", payloadString);
+
+
         assertThat(result).isNotNull();
         assertThat(result.getProcessingError()).isNotNull();
         assertThat(result.getProcessingError()).contains("Invalid webhook token");
