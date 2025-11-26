@@ -59,7 +59,7 @@ class GitWebhookServiceImplTest {
     private com.fasterxml.jackson.databind.ObjectMapper mockObjectMapper;
 
     @Mock
-    private GitWebhookProcessor webhookProcessor;
+    private GitWebhookProcessorService webhookProcessor;
 
     @InjectMocks
     private GitWebhookServiceImpl gitWebhookService;

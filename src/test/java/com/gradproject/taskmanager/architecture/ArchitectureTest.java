@@ -59,7 +59,7 @@ class ArchitectureTest {
         authToProject.check(classes);
     }
 
-    
+
     @Test
     void modules_canDependOnSharedAndInfrastructure() {
         ArchRule sharedRule = classes()
@@ -76,7 +76,8 @@ class ArchitectureTest {
                         "lombok..",
                         "com.fasterxml..",
                         "org.slf4j..",
-                        "org.hibernate.."
+                        "org.hibernate..",
+                        "com.sendgrid.."  // SendGrid SDK for email notifications
                 );
 
         sharedRule.check(classes);

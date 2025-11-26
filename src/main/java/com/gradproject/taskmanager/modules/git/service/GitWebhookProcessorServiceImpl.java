@@ -26,7 +26,7 @@ import java.util.Optional;
 @Slf4j
 @Service
 @RequiredArgsConstructor
-public class GitWebhookProcessorImpl implements GitWebhookProcessor {
+public class GitWebhookProcessorServiceImpl implements GitWebhookProcessorService {
 
     private final GitWebhookEventRepository webhookEventRepository;
     private final GitCommitRepository commitRepository;

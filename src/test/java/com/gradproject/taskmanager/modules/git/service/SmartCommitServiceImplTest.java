@@ -42,6 +42,24 @@ class SmartCommitServiceImplTest {
     @Mock
     private SmartCommitExecutionRepository executionRepository;
 
+    @Mock
+    private com.gradproject.taskmanager.modules.task.service.TaskService taskService;
+
+    @Mock
+    private com.gradproject.taskmanager.modules.task.service.CommentService commentService;
+
+    @Mock
+    private com.gradproject.taskmanager.modules.task.service.LabelService labelService;
+
+    @Mock
+    private com.gradproject.taskmanager.modules.project.repository.TaskStatusRepository taskStatusRepository;
+
+    @Mock
+    private com.gradproject.taskmanager.modules.task.repository.LabelRepository labelRepository;
+
+    @Mock
+    private com.gradproject.taskmanager.modules.auth.repository.UserRepository userRepository;
+
     @InjectMocks
     private SmartCommitServiceImpl smartCommitService;
 
@@ -92,7 +110,7 @@ class SmartCommitServiceImplTest {
 
         @Test
         void shouldProcessCommitWithMultipleCommands() {
-            
+            // Setup TRANSITION and COMMENT commands
             SmartCommitParser.SmartCommitCommand closeCommand =
                 new SmartCommitParser.SmartCommitCommand(SmartCommitCommandType.TRANSITION, "close", null, "#close");
             SmartCommitParser.SmartCommitCommand commentCommand =
@@ -102,20 +120,25 @@ class SmartCommitServiceImplTest {
                 .thenReturn(List.of(closeCommand, commentCommand));
             when(commitTaskRepository.findByGitCommitId(1L))
                 .thenReturn(List.of(commitTask));
+            // Mock dependencies for command execution (both will fail due to missing data)
+            when(taskStatusRepository.findByProjectIdOrderByOrderIndexAsc(anyLong()))
+                .thenReturn(List.of());
+            doThrow(new RuntimeException("User not found"))
+                .when(commentService).addComment(anyLong(), any(), anyInt());
 
             SmartCommitExecution mockExecution = new SmartCommitExecution();
             mockExecution.setId(1L);
             when(executionRepository.save(any(SmartCommitExecution.class)))
                 .thenReturn(mockExecution);
 
-            
+            // Execute
             SmartCommitService.SmartCommitExecutionSummary summary =
                 smartCommitService.processCommit(commit);
 
-            
+            // Verify
             assertThat(summary).isNotNull();
             assertThat(summary.totalCommands()).isEqualTo(2);
-            assertThat(summary.successfulExecutions()).isZero(); 
+            assertThat(summary.successfulExecutions()).isZero();
             assertThat(summary.failedExecutions()).isEqualTo(2);
             assertThat(summary.results()).hasSize(2);
 
@@ -172,7 +195,7 @@ class SmartCommitServiceImplTest {
 
         @Test
         void shouldExecuteAllCommandsForTask() {
-            
+            // Setup commands - TRANSITION and TIME
             SmartCommitParser.SmartCommitCommand command1 =
                 new SmartCommitParser.SmartCommitCommand(SmartCommitCommandType.TRANSITION, "close", null, "#close");
             SmartCommitParser.SmartCommitCommand command2 =
@@ -180,17 +203,20 @@ class SmartCommitServiceImplTest {
 
             when(smartCommitParser.parseCommands(commit.getMessage()))
                 .thenReturn(List.of(command1, command2));
+            // Mock taskStatusRepository for TRANSITION command
+            when(taskStatusRepository.findByProjectIdOrderByOrderIndexAsc(anyLong()))
+                .thenReturn(List.of());
 
             SmartCommitExecution mockExecution = new SmartCommitExecution();
             mockExecution.setId(1L);
             when(executionRepository.save(any(SmartCommitExecution.class)))
                 .thenReturn(mockExecution);
 
-            
+            // Execute
             List<SmartCommitService.CommandExecutionResult> results =
                 smartCommitService.executeCommands(commit, task);
 
-            
+            // Verify
             assertThat(results).hasSize(2);
             assertThat(results.get(0).commandType()).isEqualTo("TRANSITION");
             assertThat(results.get(1).commandType()).isEqualTo("TIME");
@@ -208,15 +234,15 @@ class SmartCommitServiceImplTest {
 
         @Test
         void shouldHandleEmptyCommands() {
-            
+            // Setup - no commands
             when(smartCommitParser.parseCommands(commit.getMessage()))
                 .thenReturn(List.of());
 
-            
+            // Execute
             List<SmartCommitService.CommandExecutionResult> results =
                 smartCommitService.executeCommands(commit, task);
 
-            
+            // Verify
             assertThat(results).isEmpty();
             verify(executionRepository, never()).save(any());
         }
@@ -226,63 +252,72 @@ class SmartCommitServiceImplTest {
     class ExecuteCommand {
 
         @Test
-        void shouldReturnFailureForTransitionCommand() {
-            
+        void shouldReturnFailureForTransitionCommand_WhenStatusNotFound() {
+            // When no status is found, it should return "Status not found"
+            when(taskStatusRepository.findByProjectIdOrderByOrderIndexAsc(anyLong()))
+                .thenReturn(List.of());
+
             SmartCommitService.CommandExecutionResult result =
                 smartCommitService.executeCommand("TRANSITION", "close", task, null);
 
-            
             assertThat(result.success()).isFalse();
             assertThat(result.commandType()).isEqualTo("TRANSITION");
-            assertThat(result.errorMessage()).contains("not yet implemented");
+            assertThat(result.errorMessage()).contains("Status not found");
         }
 
         @Test
-        void shouldReturnFailureForCommentCommand() {
-            
+        void shouldReturnFailureForCommentCommand_WhenServiceFails() {
+            // When comment service throws exception
+            doThrow(new RuntimeException("User not found"))
+                .when(commentService).addComment(anyLong(), any(), anyInt());
+
             SmartCommitService.CommandExecutionResult result =
                 smartCommitService.executeCommand("COMMENT", "Fixed the bug", task, null);
 
-            
             assertThat(result.success()).isFalse();
             assertThat(result.commandType()).isEqualTo("COMMENT");
-            assertThat(result.errorMessage()).contains("not yet implemented");
+            assertThat(result.errorMessage()).isNotNull();
         }
 
         @Test
         void shouldReturnFailureForTimeCommand() {
-            
+            // TIME command is not yet implemented
             SmartCommitService.CommandExecutionResult result =
                 smartCommitService.executeCommand("TIME", "2h", task, null);
 
-            
             assertThat(result.success()).isFalse();
             assertThat(result.commandType()).isEqualTo("TIME");
             assertThat(result.errorMessage()).contains("not yet implemented");
         }
 
         @Test
-        void shouldReturnFailureForAssignCommand() {
-            
+        void shouldReturnFailureForAssignCommand_WhenUserNotFound() {
+            // When user is not found
+            when(userRepository.findByUsername(anyString()))
+                .thenReturn(java.util.Optional.empty());
+
             SmartCommitService.CommandExecutionResult result =
                 smartCommitService.executeCommand("ASSIGN", "@john", task, null);
 
-            
             assertThat(result.success()).isFalse();
             assertThat(result.commandType()).isEqualTo("ASSIGN");
-            assertThat(result.errorMessage()).contains("not yet implemented");
+            assertThat(result.errorMessage()).contains("User not found");
         }
 
         @Test
-        void shouldReturnFailureForLabelCommand() {
-            
+        void shouldReturnFailureForLabelCommand_WhenServiceFails() {
+            // When label repository returns empty and label creation fails
+            when(labelRepository.findByOrganizationIdAndName(anyLong(), anyString()))
+                .thenReturn(java.util.Optional.empty());
+            doThrow(new RuntimeException("Failed to create label"))
+                .when(labelService).createLabel(anyLong(), any(), anyInt());
+
             SmartCommitService.CommandExecutionResult result =
                 smartCommitService.executeCommand("LABEL", "bug", task, null);
 
-            
             assertThat(result.success()).isFalse();
             assertThat(result.commandType()).isEqualTo("LABEL");
-            assertThat(result.errorMessage()).contains("not yet implemented");
+            assertThat(result.errorMessage()).isNotNull();
         }
 
         @Test
@@ -315,7 +350,7 @@ class SmartCommitServiceImplTest {
 
         @Test
         void shouldCreateExecutionRecordWithFailureStatus() {
-            
+            // Setup - TRANSITION command will fail with "Status not found" when no status exists
             SmartCommitParser.SmartCommitCommand command =
                 new SmartCommitParser.SmartCommitCommand(
                     SmartCommitCommandType.TRANSITION,
@@ -326,17 +361,19 @@ class SmartCommitServiceImplTest {
 
             when(smartCommitParser.parseCommands(commit.getMessage()))
                 .thenReturn(List.of(command));
+            when(taskStatusRepository.findByProjectIdOrderByOrderIndexAsc(anyLong()))
+                .thenReturn(List.of());
 
             SmartCommitExecution mockExecution = new SmartCommitExecution();
             mockExecution.setId(1L);
             when(executionRepository.save(any(SmartCommitExecution.class)))
                 .thenReturn(mockExecution);
 
-            
+            // Execute
             List<SmartCommitService.CommandExecutionResult> results =
                 smartCommitService.executeCommands(commit, task);
 
-            
+            // Verify
             ArgumentCaptor<SmartCommitExecution> captor =
                 ArgumentCaptor.forClass(SmartCommitExecution.class);
             verify(executionRepository).save(captor.capture());
@@ -344,12 +381,12 @@ class SmartCommitServiceImplTest {
             SmartCommitExecution execution = captor.getValue();
             assertThat(execution.getExecuted()).isFalse();
             assertThat(execution.getExecutionError()).isNotNull();
-            assertThat(execution.getExecutionError()).contains("not yet implemented");
+            assertThat(execution.getExecutionError()).contains("Status not found");
         }
 
         @Test
         void shouldStoreOriginalCommandText() {
-            
+            // Use COMMENT command - whether it succeeds or fails, the command text should be stored
             SmartCommitParser.SmartCommitCommand command =
                 new SmartCommitParser.SmartCommitCommand(
                     SmartCommitCommandType.COMMENT,
@@ -360,15 +397,17 @@ class SmartCommitServiceImplTest {
 
             when(smartCommitParser.parseCommands(commit.getMessage()))
                 .thenReturn(List.of(command));
+            // Allow comment service to be called (it may succeed or fail, we just care about storage)
+            lenient().when(commentService.addComment(anyLong(), any(), anyInt())).thenReturn(null);
 
             SmartCommitExecution mockExecution = new SmartCommitExecution();
             when(executionRepository.save(any(SmartCommitExecution.class)))
                 .thenReturn(mockExecution);
 
-            
+            // Execute
             smartCommitService.executeCommands(commit, task);
 
-            
+            // Verify
             ArgumentCaptor<SmartCommitExecution> captor =
                 ArgumentCaptor.forClass(SmartCommitExecution.class);
             verify(executionRepository).save(captor.capture());
@@ -384,7 +423,10 @@ class SmartCommitServiceImplTest {
 
         @Test
         void shouldHandleMixedCaseCommandTypes() {
-            
+            // Mock taskStatusRepository for TRANSITION commands
+            when(taskStatusRepository.findByProjectIdOrderByOrderIndexAsc(anyLong()))
+                .thenReturn(List.of());
+
             SmartCommitService.CommandExecutionResult result1 =
                 smartCommitService.executeCommand("transition", "close", task, null);
             SmartCommitService.CommandExecutionResult result2 =
@@ -392,7 +434,7 @@ class SmartCommitServiceImplTest {
             SmartCommitService.CommandExecutionResult result3 =
                 smartCommitService.executeCommand("TrAnSiTiOn", "close", task, null);
 
-            
+            // Verify command type is normalized to uppercase
             assertThat(result1.commandType()).isEqualTo("TRANSITION");
             assertThat(result2.commandType()).isEqualTo("TRANSITION");
             assertThat(result3.commandType()).isEqualTo("TRANSITION");
@@ -400,32 +442,38 @@ class SmartCommitServiceImplTest {
 
         @Test
         void shouldHandleEmptyCommandValue() {
-            
+            // Comment service will throw when adding empty comment
+            doThrow(new RuntimeException("Comment cannot be empty"))
+                .when(commentService).addComment(anyLong(), any(), anyInt());
+
             SmartCommitService.CommandExecutionResult result =
                 smartCommitService.executeCommand("COMMENT", "", task, null);
 
-            
             assertThat(result).isNotNull();
             assertThat(result.success()).isFalse();
         }
 
         @Test
         void shouldHandleNullCommandValue() {
-            
+            // Comment service will throw when adding null comment
+            doThrow(new RuntimeException("Comment cannot be null"))
+                .when(commentService).addComment(anyLong(), any(), anyInt());
+
             SmartCommitService.CommandExecutionResult result =
                 smartCommitService.executeCommand("COMMENT", null, task, null);
 
-            
             assertThat(result).isNotNull();
             assertThat(result.success()).isFalse();
         }
 
         @Test
         void shouldHandleMultipleTasksWithSameCommands() {
-            
+            // Setup second task
             Task task2 = new Task();
             task2.setId(2L);
             task2.setKey("PROJ-456");
+            task2.setProject(project);
+            task2.setOrganization(organization);
 
             GitCommitTask commitTask2 = new GitCommitTask();
             commitTask2.setGitCommit(commit);
@@ -443,19 +491,21 @@ class SmartCommitServiceImplTest {
                 .thenReturn(List.of(command));
             when(commitTaskRepository.findByGitCommitId(1L))
                 .thenReturn(List.of(commitTask, commitTask2));
+            when(taskStatusRepository.findByProjectIdOrderByOrderIndexAsc(anyLong()))
+                .thenReturn(List.of());
 
             SmartCommitExecution mockExecution = new SmartCommitExecution();
             mockExecution.setId(1L);
             when(executionRepository.save(any(SmartCommitExecution.class)))
                 .thenReturn(mockExecution);
 
-            
+            // Execute
             SmartCommitService.SmartCommitExecutionSummary summary =
                 smartCommitService.processCommit(commit);
 
-            
+            // Verify - command executed for both tasks
             assertThat(summary.totalCommands()).isEqualTo(1);
-            assertThat(summary.results()).hasSize(2); 
+            assertThat(summary.results()).hasSize(2);
             verify(executionRepository, times(2)).save(any(SmartCommitExecution.class));
         }
     }

@@ -88,3 +88,34 @@ storage:
       - text/csv
       - application/json
       - application/zip
+
+app:
+  email:
+    sendgrid:
+      # SendGrid API key for email delivery
+      # Get your API key from: https://app.sendgrid.com/settings/api_keys
+      # Set via environment variable: SENDGRID_API_KEY
+      api-key: ${SENDGRID_API_KEY:your-sendgrid-api-key-here}
+    from:
+      # Sender email address (must be verified in SendGrid)
+      address: ${EMAIL_FROM_ADDRESS:notifications@taskmanager.com}
+      # Sender display name
+      name: ${EMAIL_FROM_NAME:Task Manager}
+    digest:
+      # Enable/disable email digest scheduler
+      enabled: ${EMAIL_DIGEST_ENABLED:true}
+    retry:
+      # Enable/disable failed email retry scheduler
+      enabled: ${EMAIL_RETRY_ENABLED:true}
+      # Maximum retry attempts before marking as permanently failed
+      max-attempts: ${EMAIL_RETRY_MAX_ATTEMPTS:3}
+      # Initial delay before first retry (in minutes)
+      initial-delay-minutes: ${EMAIL_RETRY_INITIAL_DELAY:5}
+      # Backoff multiplier for exponential retry (5min, 10min, 20min)
+      backoff-multiplier: ${EMAIL_RETRY_BACKOFF_MULTIPLIER:2}
+  frontend:
+    # Frontend base URL for task links in emails
+    base-url: ${FRONTEND_BASE_URL:http://localhost:5173}
+  notifications:
+    # Number of days to retain read notifications before cleanup
+    retention-days: ${NOTIFICATION_RETENTION_DAYS:30}

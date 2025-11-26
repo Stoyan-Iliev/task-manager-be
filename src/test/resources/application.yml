@@ -37,3 +37,24 @@ security:
     # AES-256 encryption key for sensitive data (Git tokens, etc.)
     # In production, set via environment variable SECURITY_ENCRYPTION_KEY
     key: "test-containers-dev-encryption-key-change-in-production-32chars-minimum"
+
+# Email configuration for testing
+app:
+  email:
+    sendgrid:
+      # Placeholder API key for tests (not actually used in mock scenarios)
+      api-key: "SG.test-key-for-integration-tests"
+    from:
+      address: "test@example.com"
+      name: "Test Task Manager"
+    digest:
+      # Disable scheduled email processing during tests
+      enabled: false
+    retry:
+      # Disable retry scheduler during tests
+      enabled: false
+      max-attempts: 3
+      initial-delay-minutes: 5
+      backoff-multiplier: 2
+  frontend:
+    base-url: "http://localhost:5173"
