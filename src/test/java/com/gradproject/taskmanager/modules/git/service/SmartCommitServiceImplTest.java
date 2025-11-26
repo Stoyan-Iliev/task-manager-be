@@ -52,6 +52,9 @@ class SmartCommitServiceImplTest {
     private com.gradproject.taskmanager.modules.task.service.LabelService labelService;
 
     @Mock
+    private com.gradproject.taskmanager.modules.task.service.WorkLogService workLogService;
+
+    @Mock
     private com.gradproject.taskmanager.modules.project.repository.TaskStatusRepository taskStatusRepository;
 
     @Mock
@@ -206,6 +209,8 @@ class SmartCommitServiceImplTest {
             // Mock taskStatusRepository for TRANSITION command
             when(taskStatusRepository.findByProjectIdOrderByOrderIndexAsc(anyLong()))
                 .thenReturn(List.of());
+            // Mock parseTimeToMinutes for TIME command
+            when(smartCommitParser.parseTimeToMinutes("2h")).thenReturn(120);
 
             SmartCommitExecution mockExecution = new SmartCommitExecution();
             mockExecution.setId(1L);
@@ -220,6 +225,9 @@ class SmartCommitServiceImplTest {
             assertThat(results).hasSize(2);
             assertThat(results.get(0).commandType()).isEqualTo("TRANSITION");
             assertThat(results.get(1).commandType()).isEqualTo("TIME");
+            // TRANSITION fails (no status found), TIME succeeds
+            assertThat(results.get(0).success()).isFalse();
+            assertThat(results.get(1).success()).isTrue();
 
             ArgumentCaptor<SmartCommitExecution> captor =
                 ArgumentCaptor.forClass(SmartCommitExecution.class);
@@ -280,14 +288,51 @@ class SmartCommitServiceImplTest {
         }
 
         @Test
-        void shouldReturnFailureForTimeCommand() {
-            // TIME command is not yet implemented
+        void shouldReturnSuccessForTimeCommand() {
+            // TIME command should succeed when time is valid
+            when(smartCommitParser.parseTimeToMinutes("2h")).thenReturn(120);
+
+            SmartCommitService.CommandExecutionResult result =
+                smartCommitService.executeCommand("TIME", "2h", task, null);
+
+            assertThat(result.success()).isTrue();
+            assertThat(result.commandType()).isEqualTo("TIME");
+            assertThat(result.errorMessage()).isNull();
+
+            verify(workLogService).logTimeFromSmartCommit(
+                eq(task.getId()),
+                eq(120),
+                anyString(),
+                eq(1)  // system user ID
+            );
+        }
+
+        @Test
+        void shouldReturnFailureForTimeCommand_WhenInvalidTime() {
+            // TIME command should fail when time parses to 0
+            when(smartCommitParser.parseTimeToMinutes("invalid")).thenReturn(0);
+
+            SmartCommitService.CommandExecutionResult result =
+                smartCommitService.executeCommand("TIME", "invalid", task, null);
+
+            assertThat(result.success()).isFalse();
+            assertThat(result.commandType()).isEqualTo("TIME");
+            assertThat(result.errorMessage()).contains("Invalid time value");
+        }
+
+        @Test
+        void shouldReturnFailureForTimeCommand_WhenServiceFails() {
+            // TIME command should fail when WorkLogService throws exception
+            when(smartCommitParser.parseTimeToMinutes("2h")).thenReturn(120);
+            doThrow(new RuntimeException("Task not found"))
+                .when(workLogService).logTimeFromSmartCommit(anyLong(), anyInt(), anyString(), anyInt());
+
             SmartCommitService.CommandExecutionResult result =
                 smartCommitService.executeCommand("TIME", "2h", task, null);
 
             assertThat(result.success()).isFalse();
             assertThat(result.commandType()).isEqualTo("TIME");
-            assertThat(result.errorMessage()).contains("not yet implemented");
+            assertThat(result.errorMessage()).contains("Task not found");
         }
 
         @Test

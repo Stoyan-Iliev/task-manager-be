@@ -10,6 +10,7 @@ import com.gradproject.taskmanager.modules.auth.domain.User;
 import com.gradproject.taskmanager.modules.project.domain.TaskStatus;
 import com.gradproject.taskmanager.modules.task.domain.Comment;
 import com.gradproject.taskmanager.modules.task.domain.Task;
+import com.gradproject.taskmanager.modules.task.domain.WorkLog;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -189,7 +190,59 @@ public class ActivityLogService {
         activityLogRepository.save(activityLog);
     }
 
-    
+    /**
+     * Log work time added to a task.
+     */
+    @Transactional
+    public void logWorkLogged(Task task, WorkLog workLog, User user) {
+        int nextVersion = getNextVersionNumber(EntityType.WORK_LOG, workLog.getId());
+
+        ActivityLog activityLog = ActivityLog.builder()
+                .organization(task.getOrganization())
+                .project(task.getProject())
+                .task(task)
+                .entityType(EntityType.WORK_LOG)
+                .entityId(workLog.getId())
+                .action(ActionType.WORK_LOGGED)
+                .user(user)
+                .metadata(toJsonString(Map.of(
+                        "workLogId", workLog.getId(),
+                        "timeSpentMinutes", workLog.getTimeSpentMinutes(),
+                        "timeSpentFormatted", workLog.getTimeSpentFormatted(),
+                        "workDate", workLog.getWorkDate().toString(),
+                        "source", workLog.getSource().name()
+                )))
+                .versionNumber(nextVersion)
+                .build();
+
+        activityLogRepository.save(activityLog);
+    }
+
+    /**
+     * Log work log deleted.
+     */
+    @Transactional
+    public void logWorkLogDeleted(Task task, WorkLog workLog, User user) {
+        int nextVersion = getNextVersionNumber(EntityType.WORK_LOG, workLog.getId());
+
+        ActivityLog activityLog = ActivityLog.builder()
+                .organization(task.getOrganization())
+                .project(task.getProject())
+                .task(task)
+                .entityType(EntityType.WORK_LOG)
+                .entityId(workLog.getId())
+                .action(ActionType.WORK_LOG_DELETED)
+                .user(user)
+                .metadata(toJsonString(Map.of(
+                        "timeSpentMinutes", workLog.getTimeSpentMinutes(),
+                        "workDate", workLog.getWorkDate().toString()
+                )))
+                .versionNumber(nextVersion)
+                .build();
+
+        activityLogRepository.save(activityLog);
+    }
+
     @Transactional
     public void logActivity(ActivityLog log) {
         activityLogRepository.save(log);

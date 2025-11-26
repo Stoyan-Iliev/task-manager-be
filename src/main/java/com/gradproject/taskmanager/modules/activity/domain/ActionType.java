@@ -52,8 +52,13 @@ public enum ActionType {
     PR_CLOSED,
     PR_UPDATED,
 
-    
+
     MEMBER_ADDED,
     MEMBER_REMOVED,
-    ROLE_CHANGED
+    ROLE_CHANGED,
+
+    // Work log actions
+    WORK_LOGGED,
+    WORK_LOG_UPDATED,
+    WORK_LOG_DELETED
 }
