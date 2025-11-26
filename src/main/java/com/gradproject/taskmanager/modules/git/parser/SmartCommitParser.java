@@ -13,9 +13,10 @@ import java.util.regex.Pattern;
 @Component
 public class SmartCommitParser {
 
-    
+    // Matches any kebab-case status name after #, excluding reserved commands (comment, time, assign, label)
+    // Examples: #testing, #done, #in-progress, #pull-request-waiting, #code-review
     private static final Pattern TRANSITION_PATTERN = Pattern.compile(
-        "#(close|closed|done|complete|completed|in-progress|review|to-do|todo|blocked)(?:\\s+(.*))?",
+        "#(?!comment\\b|time\\b|assign\\b|label\\b)([a-zA-Z][a-zA-Z0-9]*(?:-[a-zA-Z0-9]+)*)(?:\\s+(.*))?",
         Pattern.CASE_INSENSITIVE
     );
 
@@ -131,16 +132,69 @@ public class SmartCommitParser {
                LABEL_PATTERN.matcher(commitMessage).find();
     }
 
-    
+    /**
+     * Maps a smart commit action keyword to a status name.
+     * <p>
+     * Supports:
+     * - Predefined aliases: #close, #done, #review, etc.
+     * - Single-word custom statuses: #testing -> "Testing"
+     * - Multi-word kebab-case statuses: #pull-request-waiting -> "Pull Request Waiting"
+     *
+     * @param action the kebab-case action from the commit message
+     * @return the status name (Title Case with spaces)
+     */
     private String mapActionToStatus(String action) {
-        return switch (action.toLowerCase()) {
+        // First check for predefined aliases
+        String alias = switch (action.toLowerCase()) {
             case "close", "closed", "done", "complete", "completed" -> "Done";
             case "in-progress" -> "In Progress";
             case "review" -> "Code Review";
             case "to-do", "todo" -> "To Do";
             case "blocked" -> "Blocked";
-            default -> action; 
+            default -> null;
         };
+
+        if (alias != null) {
+            return alias;
+        }
+
+        // For custom statuses, convert kebab-case to Title Case
+        // e.g., "testing" -> "Testing", "pull-request-waiting" -> "Pull Request Waiting"
+        return convertKebabCaseToTitleCase(action);
+    }
+
+    /**
+     * Converts a kebab-case string to Title Case with spaces.
+     * <p>
+     * Examples:
+     * - "testing" -> "Testing"
+     * - "pull-request-waiting" -> "Pull Request Waiting"
+     * - "code-review" -> "Code Review"
+     *
+     * @param kebabCase the kebab-case string
+     * @return Title Case string with spaces
+     */
+    private String convertKebabCaseToTitleCase(String kebabCase) {
+        if (kebabCase == null || kebabCase.isEmpty()) {
+            return kebabCase;
+        }
+
+        String[] words = kebabCase.toLowerCase().split("-");
+        StringBuilder result = new StringBuilder();
+
+        for (int i = 0; i < words.length; i++) {
+            if (i > 0) {
+                result.append(" ");
+            }
+            if (!words[i].isEmpty()) {
+                result.append(Character.toUpperCase(words[i].charAt(0)));
+                if (words[i].length() > 1) {
+                    result.append(words[i].substring(1));
+                }
+            }
+        }
+
+        return result.toString();
     }
 
     

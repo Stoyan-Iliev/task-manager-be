@@ -16,8 +16,11 @@ import java.util.Optional;
 @Repository
 public interface TaskWatcherRepository extends JpaRepository<TaskWatcher, Long> {
 
-    
+
     List<TaskWatcher> findByTaskId(Long taskId);
+
+    @Query("SELECT tw FROM TaskWatcher tw JOIN FETCH tw.user WHERE tw.task.id = :taskId")
+    List<TaskWatcher> findByTaskIdWithUser(@Param("taskId") Long taskId);
 
     
     List<TaskWatcher> findByUserId(Integer userId);

@@ -3,7 +3,7 @@ package com.gradproject.taskmanager.modules.git.service;
 import com.gradproject.taskmanager.modules.git.domain.GitWebhookEvent;
 
 
-public interface GitWebhookProcessor {
+public interface GitWebhookProcessorService {
 
     /**
      * Process a webhook event asynchronously.

@@ -5,7 +5,9 @@ import com.gradproject.taskmanager.modules.auth.repository.UserRepository;
 import com.gradproject.taskmanager.modules.notification.domain.Notification;
 import com.gradproject.taskmanager.modules.notification.event.*;
 import com.gradproject.taskmanager.modules.notification.repository.NotificationRepository;
+import com.gradproject.taskmanager.modules.task.domain.Task;
 import com.gradproject.taskmanager.modules.task.domain.TaskWatcher;
+import com.gradproject.taskmanager.modules.task.repository.TaskRepository;
 import com.gradproject.taskmanager.modules.task.repository.TaskWatcherRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -24,6 +26,7 @@ import java.util.List;
 public class NotificationEventListener {
 
     private final NotificationRepository notificationRepo;
+    private final TaskRepository taskRepo;
     private final TaskWatcherRepository watcherRepo;
     private final UserRepository userRepo;
     private final SimpMessagingTemplate messagingTemplate;
@@ -33,9 +36,8 @@ public class NotificationEventListener {
     @Async
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     public void handleTaskCreated(TaskCreatedEvent event) {
-        log.debug("Handling TaskCreatedEvent for task: {}", event.getTask().getKey());
+        log.debug("Handling TaskCreatedEvent for task ID: {}", event.getTask().getId());
 
-        
         notifyWatchers(event);
     }
 
@@ -44,34 +46,48 @@ public class NotificationEventListener {
     @Async
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     public void handleTaskAssigned(TaskAssignedEvent event) {
-        log.debug("Handling TaskAssignedEvent for task: {}", event.getTask().getKey());
+        // Re-fetch entities with eager loading to avoid LazyInitializationException
+        Long taskId = event.getTask().getId();
+        Integer actorId = event.getActor().getId();
+        Integer assigneeId = event.getAssignee().getId();
 
-        
+        Task task = taskRepo.findByIdWithAssociations(taskId).orElse(null);
+        User actor = userRepo.findById(actorId).orElse(null);
+        User assignee = userRepo.findById(assigneeId).orElse(null);
+
+        if (task == null || actor == null || assignee == null) {
+            log.warn("Task {}, actor {}, or assignee {} not found", taskId, actorId, assigneeId);
+            return;
+        }
+
+        log.debug("Handling TaskAssignedEvent for task: {}", task.getKey());
+
+
         Notification assigneeNotif = createNotification(
-                event.getTask(),
-                event.getAssignee(),
+                task,
+                assignee,
                 event.getType(),
                 "Task Assigned to You",
                 String.format("%s assigned %s to you",
-                        event.getActor().getUsername(),
-                        event.getTask().getKey()),
-                event.getActor()
+                        actor.getUsername(),
+                        task.getKey()),
+                actor
         );
         sendWebSocketNotification(assigneeNotif);
 
-        
-        List<TaskWatcher> watchers = watcherRepo.findByTaskId(event.getTask().getId());
+
+        List<TaskWatcher> watchers = watcherRepo.findByTaskIdWithUser(taskId);
         for (TaskWatcher watcher : watchers) {
-            if (!watcher.getUser().getId().equals(event.getActor().getId()) &&
-                !watcher.getUser().getId().equals(event.getAssignee().getId())) {
+            if (!watcher.getUser().getId().equals(actorId) &&
+                !watcher.getUser().getId().equals(assigneeId)) {
 
                 Notification watcherNotif = createNotification(
-                        event.getTask(),
+                        task,
                         watcher.getUser(),
                         event.getType(),
                         "Task Assigned",
                         event.getMessage(),
-                        event.getActor()
+                        actor
                 );
                 sendWebSocketNotification(watcherNotif);
             }
@@ -81,9 +97,8 @@ public class NotificationEventListener {
     @Async
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     public void handleTaskUnassigned(TaskUnassignedEvent event) {
-        log.debug("Handling TaskUnassignedEvent for task: {}", event.getTask().getKey());
+        log.debug("Handling TaskUnassignedEvent for task ID: {}", event.getTask().getId());
 
-        
         notifyWatchers(event);
     }
 
@@ -92,12 +107,8 @@ public class NotificationEventListener {
     @Async
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     public void handleTaskStatusChanged(TaskStatusChangedEvent event) {
-        log.debug("Handling TaskStatusChangedEvent for task: {} (from {} to {})",
-                event.getTask().getKey(),
-                event.getOldStatus().getName(),
-                event.getNewStatus().getName());
+        log.debug("Handling TaskStatusChangedEvent for task ID: {}", event.getTask().getId());
 
-        
         notifyWatchers(event);
     }
 
@@ -106,12 +117,8 @@ public class NotificationEventListener {
     @Async
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     public void handleTaskPriorityChanged(TaskPriorityChangedEvent event) {
-        log.debug("Handling TaskPriorityChangedEvent for task: {} (from {} to {})",
-                event.getTask().getKey(),
-                event.getOldPriority().name(),
-                event.getNewPriority().name());
+        log.debug("Handling TaskPriorityChangedEvent for task ID: {}", event.getTask().getId());
 
-        
         notifyWatchers(event);
     }
 
@@ -120,9 +127,8 @@ public class NotificationEventListener {
     @Async
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     public void handleTaskDueDateChanged(TaskDueDateChangedEvent event) {
-        log.debug("Handling TaskDueDateChangedEvent for task: {}", event.getTask().getKey());
+        log.debug("Handling TaskDueDateChangedEvent for task ID: {}", event.getTask().getId());
 
-        
         notifyWatchers(event);
     }
 
@@ -131,9 +137,8 @@ public class NotificationEventListener {
     @Async
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     public void handleCommentAdded(CommentAddedEvent event) {
-        log.debug("Handling CommentAddedEvent for task: {}", event.getTask().getKey());
+        log.debug("Handling CommentAddedEvent for task ID: {}", event.getTask().getId());
 
-        
         notifyWatchers(event);
     }
 
@@ -142,22 +147,34 @@ public class NotificationEventListener {
     @Async
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     public void handleMentioned(MentionedEvent event) {
+        // Re-fetch entities with eager loading to avoid LazyInitializationException
+        Long taskId = event.getTask().getId();
+        Integer actorId = event.getActor().getId();
+
+        Task task = taskRepo.findByIdWithAssociations(taskId).orElse(null);
+        User actor = userRepo.findById(actorId).orElse(null);
+
+        if (task == null || actor == null) {
+            log.warn("Task {} or actor {} not found when handling mention", taskId, actorId);
+            return;
+        }
+
         log.debug("Handling MentionedEvent for task: {} (mentioned users: {})",
-                event.getTask().getKey(),
+                task.getKey(),
                 event.getMentionedUsernames());
 
-        
+
         for (String username : event.getMentionedUsernames()) {
             userRepo.findByUsername(username).ifPresent(mentionedUser -> {
-                
-                if (!mentionedUser.getId().equals(event.getActor().getId())) {
+
+                if (!mentionedUser.getId().equals(actorId)) {
                     Notification notification = createNotification(
-                            event.getTask(),
+                            task,
                             mentionedUser,
                             event.getType(),
                             event.getTitle(),
                             event.getMessage(),
-                            event.getActor()
+                            actor
                     );
                     sendWebSocketNotification(notification);
                 }
@@ -170,19 +187,33 @@ public class NotificationEventListener {
     @Async
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     public void handleWatcherAdded(WatcherAddedEvent event) {
-        log.debug("Handling WatcherAddedEvent for task: {} (watcher: {})",
-                event.getTask().getKey(),
-                event.getWatcher().getUsername());
+        // Re-fetch entities with eager loading to avoid LazyInitializationException
+        Long taskId = event.getTask().getId();
+        Integer actorId = event.getActor().getId();
+        Integer watcherId = event.getWatcher().getId();
 
-        
-        if (!event.getWatcher().getId().equals(event.getActor().getId())) {
+        Task task = taskRepo.findByIdWithAssociations(taskId).orElse(null);
+        User actor = userRepo.findById(actorId).orElse(null);
+        User watcher = userRepo.findById(watcherId).orElse(null);
+
+        if (task == null || actor == null || watcher == null) {
+            log.warn("Task {}, actor {}, or watcher {} not found", taskId, actorId, watcherId);
+            return;
+        }
+
+        log.debug("Handling WatcherAddedEvent for task: {} (watcher: {})",
+                task.getKey(),
+                watcher.getUsername());
+
+
+        if (!watcherId.equals(actorId)) {
             Notification notification = createNotification(
-                    event.getTask(),
-                    event.getWatcher(),
+                    task,
+                    watcher,
                     event.getType(),
                     event.getTitle(),
                     event.getMessage(),
-                    event.getActor()
+                    actor
             );
             sendWebSocketNotification(notification);
         }
@@ -190,20 +221,32 @@ public class NotificationEventListener {
 
     
 
-    
+
     private void notifyWatchers(NotificationEvent event) {
-        List<TaskWatcher> watchers = watcherRepo.findByTaskId(event.getTask().getId());
+        // Re-fetch entities with eager loading to avoid LazyInitializationException
+        Long taskId = event.getTask().getId();
+        Integer actorId = event.getActor().getId();
+
+        Task task = taskRepo.findByIdWithAssociations(taskId).orElse(null);
+        User actor = userRepo.findById(actorId).orElse(null);
+
+        if (task == null || actor == null) {
+            log.warn("Task {} or actor {} not found when notifying watchers", taskId, actorId);
+            return;
+        }
+
+        List<TaskWatcher> watchers = watcherRepo.findByTaskIdWithUser(taskId);
 
         for (TaskWatcher watcher : watchers) {
-            
-            if (!watcher.getUser().getId().equals(event.getActor().getId())) {
+
+            if (!watcher.getUser().getId().equals(actorId)) {
                 Notification notification = createNotification(
-                        event.getTask(),
+                        task,
                         watcher.getUser(),
                         event.getType(),
                         event.getTitle(),
                         event.getMessage(),
-                        event.getActor()
+                        actor
                 );
                 sendWebSocketNotification(notification);
             }
@@ -211,7 +254,7 @@ public class NotificationEventListener {
 
         log.debug("Notified {} watchers for task {} (type: {})",
                 watchers.size(),
-                event.getTask().getKey(),
+                task.getKey(),
                 event.getType());
     }
 

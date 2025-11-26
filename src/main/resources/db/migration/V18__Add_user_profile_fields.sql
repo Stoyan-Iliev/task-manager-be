@@ -1,18 +1,18 @@
 ALTER TABLE users
-ADD COLUMN first_name VARCHAR(50),
-ADD COLUMN last_name VARCHAR(50),
-ADD COLUMN avatar_url VARCHAR(500),
-ADD COLUMN job_title VARCHAR(100),
-ADD COLUMN department VARCHAR(100),
-ADD COLUMN phone VARCHAR(20),
-ADD COLUMN timezone VARCHAR(50) DEFAULT 'UTC',
-ADD COLUMN language VARCHAR(10) DEFAULT 'en',
-ADD COLUMN date_format VARCHAR(20) DEFAULT 'MM/DD/YYYY',
-ADD COLUMN time_format VARCHAR(10) DEFAULT '12h',
-ADD COLUMN bio TEXT;
+ADD COLUMN IF NOT EXISTS first_name VARCHAR(50),
+ADD COLUMN IF NOT EXISTS last_name VARCHAR(50),
+ADD COLUMN IF NOT EXISTS avatar_url VARCHAR(500),
+ADD COLUMN IF NOT EXISTS job_title VARCHAR(100),
+ADD COLUMN IF NOT EXISTS department VARCHAR(100),
+ADD COLUMN IF NOT EXISTS phone VARCHAR(20),
+ADD COLUMN IF NOT EXISTS timezone VARCHAR(50) DEFAULT 'UTC',
+ADD COLUMN IF NOT EXISTS language VARCHAR(10) DEFAULT 'en',
+ADD COLUMN IF NOT EXISTS date_format VARCHAR(20) DEFAULT 'MM/DD/YYYY',
+ADD COLUMN IF NOT EXISTS time_format VARCHAR(10) DEFAULT '12h',
+ADD COLUMN IF NOT EXISTS bio TEXT;
 
-CREATE INDEX idx_users_first_last_name ON users(first_name, last_name);
-CREATE INDEX idx_users_department ON users(department);
+CREATE INDEX IF NOT EXISTS idx_users_first_last_name ON users(first_name, last_name);
+CREATE INDEX IF NOT EXISTS idx_users_department ON users(department);
 
 COMMENT ON COLUMN users.first_name IS 'User first name';
 COMMENT ON COLUMN users.last_name IS 'User last name';

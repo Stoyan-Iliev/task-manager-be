@@ -1,5 +1,5 @@
 -- ============================================================================
--- V20: Rename comment user_id column to author_id
+-- V19: Rename comment user_id column to author_id
 -- ============================================================================
 -- Purpose: Align column naming with frontend expectations (author instead of user)
 -- Changes:
@@ -14,7 +14,7 @@ ALTER TABLE comments RENAME COLUMN user_id TO author_id;
 DROP INDEX IF EXISTS idx_comment_user;
 
 -- Create new index with updated name
-CREATE INDEX idx_comment_author ON comments(author_id);
+CREATE INDEX IF NOT EXISTS idx_comment_author ON comments(author_id);
 
 -- Update column comment
 COMMENT ON COLUMN comments.author_id IS 'User who wrote the comment (author)';

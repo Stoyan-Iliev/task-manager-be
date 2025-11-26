@@ -35,3 +35,19 @@ security:
     # AES-256 encryption key for sensitive data (Git tokens, etc.)
     # In production, set via environment variable SECURITY_ENCRYPTION_KEY
     key: "${SECURITY_ENCRYPTION_KEY:docker-dev-encryption-key-change-in-prod-minimum-32-chars}"
+
+app:
+  email:
+    sendgrid:
+      # SendGrid API key - MUST be set via environment variable in production
+      api-key: ${SENDGRID_API_KEY}
+    from:
+      address: ${EMAIL_FROM_ADDRESS:stoian.99iliev@gmail.com}
+      name: ${EMAIL_FROM_NAME:Task Manager Notifications}
+    digest:
+      enabled: ${EMAIL_DIGEST_ENABLED:true}
+  frontend:
+    # Frontend base URL - adjust for production deployment
+    base-url: ${FRONTEND_BASE_URL:http://localhost:5173}
+  notifications:
+    retention-days: ${NOTIFICATION_RETENTION_DAYS:30}

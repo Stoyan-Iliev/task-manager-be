@@ -43,7 +43,7 @@ public class GitWebhookServiceImpl implements GitWebhookService {
     private final PermissionService permissionService;
     private final TokenEncryptionService encryptionService;
     private final ObjectMapper objectMapper;
-    private final GitWebhookProcessor webhookProcessor;
+    private final GitWebhookProcessorService webhookProcessor;
 
     @Override
     @Transactional
@@ -93,17 +93,19 @@ public class GitWebhookServiceImpl implements GitWebhookService {
             // Save webhook event for audit trail
             GitWebhookEvent saved = webhookEventRepository.save(event);
 
-            // Schedule async processing after transaction commits
-            Long eventId = saved.getId();
-            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
-                @Override
-                public void afterCommit() {
-                    // Pass a lightweight event object with just the ID
-                    GitWebhookEvent eventRef = new GitWebhookEvent();
-                    eventRef.setId(eventId);
-                    webhookProcessor.processWebhookEvent(eventRef);
-                }
-            });
+            // Only schedule async processing if there's no processing error and transaction sync is active
+            if (saved.getProcessingError() == null && TransactionSynchronizationManager.isSynchronizationActive()) {
+                Long eventId = saved.getId();
+                TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                    @Override
+                    public void afterCommit() {
+                        // Pass a lightweight event object with just the ID
+                        GitWebhookEvent eventRef = new GitWebhookEvent();
+                        eventRef.setId(eventId);
+                        webhookProcessor.processWebhookEvent(eventRef);
+                    }
+                });
+            }
 
             return saved;
 
@@ -169,17 +171,19 @@ public class GitWebhookServiceImpl implements GitWebhookService {
             // Save webhook event for audit trail
             GitWebhookEvent saved = webhookEventRepository.save(event);
 
-            // Schedule async processing after transaction commits
-            Long eventId = saved.getId();
-            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
-                @Override
-                public void afterCommit() {
-                    // Pass a lightweight event object with just the ID
-                    GitWebhookEvent eventRef = new GitWebhookEvent();
-                    eventRef.setId(eventId);
-                    webhookProcessor.processWebhookEvent(eventRef);
-                }
-            });
+            // Only schedule async processing if there's no processing error and transaction sync is active
+            if (saved.getProcessingError() == null && TransactionSynchronizationManager.isSynchronizationActive()) {
+                Long eventId = saved.getId();
+                TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                    @Override
+                    public void afterCommit() {
+                        // Pass a lightweight event object with just the ID
+                        GitWebhookEvent eventRef = new GitWebhookEvent();
+                        eventRef.setId(eventId);
+                        webhookProcessor.processWebhookEvent(eventRef);
+                    }
+                });
+            }
 
             return saved;
 

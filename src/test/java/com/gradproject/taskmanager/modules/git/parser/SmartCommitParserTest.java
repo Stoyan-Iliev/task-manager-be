@@ -589,10 +589,264 @@ class SmartCommitParserTest {
 
     @Test
     void parseTimeToMinutes_shouldHandleTimeWithMultipleSpaces() {
-        
+
         int minutes = parser.parseTimeToMinutes("2h    30m");
 
-        
+
         assertThat(minutes).isEqualTo(150);
+    }
+
+    // ==================== Custom Status Tests ====================
+
+    @Test
+    void parseCommands_shouldParseCustomSingleWordStatus() {
+        // Given - a custom status "Testing" that exists in the project
+        String commitMessage = "PROJ-123 #testing Ready for QA";
+
+        // When
+        List<SmartCommitCommand> commands = parser.parseCommands(commitMessage);
+
+        // Then
+        assertThat(commands).hasSize(1);
+        assertThat(commands.get(0).getType()).isEqualTo(SmartCommitCommandType.TRANSITION);
+        assertThat(commands.get(0).getValue()).isEqualTo("Testing");
+    }
+
+    @Test
+    void parseCommands_shouldParseMultiWordKebabCaseStatus() {
+        // Given - a multi-word status "Pull Request Waiting"
+        String commitMessage = "PROJ-123 #pull-request-waiting Awaiting review";
+
+        // When
+        List<SmartCommitCommand> commands = parser.parseCommands(commitMessage);
+
+        // Then
+        assertThat(commands).hasSize(1);
+        assertThat(commands.get(0).getType()).isEqualTo(SmartCommitCommandType.TRANSITION);
+        assertThat(commands.get(0).getValue()).isEqualTo("Pull Request Waiting");
+    }
+
+    @Test
+    void parseCommands_shouldParseCodeReviewAsKebabCase() {
+        // Given - using kebab-case instead of the alias
+        String commitMessage = "PROJ-123 #code-review";
+
+        // When
+        List<SmartCommitCommand> commands = parser.parseCommands(commitMessage);
+
+        // Then
+        assertThat(commands).hasSize(1);
+        assertThat(commands.get(0).getType()).isEqualTo(SmartCommitCommandType.TRANSITION);
+        assertThat(commands.get(0).getValue()).isEqualTo("Code Review");
+    }
+
+    @Test
+    void parseCommands_shouldParseQaVerification() {
+        // Given - a custom multi-word status
+        String commitMessage = "PROJ-123 #qa-verification";
+
+        // When
+        List<SmartCommitCommand> commands = parser.parseCommands(commitMessage);
+
+        // Then
+        assertThat(commands).hasSize(1);
+        assertThat(commands.get(0).getValue()).isEqualTo("Qa Verification");
+    }
+
+    @Test
+    void parseCommands_shouldParseAwaitingDeployment() {
+        // Given - a three-word kebab-case status
+        String commitMessage = "PROJ-123 #awaiting-prod-deployment";
+
+        // When
+        List<SmartCommitCommand> commands = parser.parseCommands(commitMessage);
+
+        // Then
+        assertThat(commands).hasSize(1);
+        assertThat(commands.get(0).getValue()).isEqualTo("Awaiting Prod Deployment");
+    }
+
+    @ParameterizedTest
+    @CsvSource({
+        "#testing, Testing",
+        "#qa, Qa",
+        "#uat, Uat",
+        "#staging, Staging",
+        "#deployed, Deployed",
+        "#on-hold, On Hold",
+        "#needs-info, Needs Info",
+        "#ready-for-dev, Ready For Dev",
+        "#in-qa, In Qa",
+        "#pull-request-waiting, Pull Request Waiting"
+    })
+    void parseCommands_shouldConvertKebabCaseToTitleCase(String command, String expectedStatus) {
+        // Given
+        String commitMessage = "PROJ-123 " + command;
+
+        // When
+        List<SmartCommitCommand> commands = parser.parseCommands(commitMessage);
+
+        // Then
+        assertThat(commands).hasSize(1);
+        assertThat(commands.get(0).getType()).isEqualTo(SmartCommitCommandType.TRANSITION);
+        assertThat(commands.get(0).getValue()).isEqualTo(expectedStatus);
+    }
+
+    @Test
+    void parseCommands_shouldNotConfuseCustomStatusWithCommentCommand() {
+        // Given - ensure #comment is not treated as a status
+        String commitMessage = "PROJ-123 #comment This is a comment";
+
+        // When
+        List<SmartCommitCommand> commands = parser.parseCommands(commitMessage);
+
+        // Then
+        assertThat(commands).hasSize(1);
+        assertThat(commands.get(0).getType()).isEqualTo(SmartCommitCommandType.COMMENT);
+        assertThat(commands.get(0).getValue()).isEqualTo("This is a comment");
+    }
+
+    @Test
+    void parseCommands_shouldNotConfuseCustomStatusWithTimeCommand() {
+        // Given - ensure #time is not treated as a status
+        String commitMessage = "PROJ-123 #time 2h";
+
+        // When
+        List<SmartCommitCommand> commands = parser.parseCommands(commitMessage);
+
+        // Then
+        assertThat(commands).hasSize(1);
+        assertThat(commands.get(0).getType()).isEqualTo(SmartCommitCommandType.TIME);
+    }
+
+    @Test
+    void parseCommands_shouldNotConfuseCustomStatusWithAssignCommand() {
+        // Given - ensure #assign is not treated as a status
+        String commitMessage = "PROJ-123 #assign @john";
+
+        // When
+        List<SmartCommitCommand> commands = parser.parseCommands(commitMessage);
+
+        // Then
+        assertThat(commands).hasSize(1);
+        assertThat(commands.get(0).getType()).isEqualTo(SmartCommitCommandType.ASSIGN);
+    }
+
+    @Test
+    void parseCommands_shouldNotConfuseCustomStatusWithLabelCommand() {
+        // Given - ensure #label is not treated as a status
+        String commitMessage = "PROJ-123 #label bug";
+
+        // When
+        List<SmartCommitCommand> commands = parser.parseCommands(commitMessage);
+
+        // Then
+        assertThat(commands).hasSize(1);
+        assertThat(commands.get(0).getType()).isEqualTo(SmartCommitCommandType.LABEL);
+    }
+
+    @Test
+    void parseCommands_shouldHandleCustomStatusWithOtherCommands() {
+        // Given - mix of custom status and other commands
+        String commitMessage = "PROJ-123 #testing #comment Added tests #assign @jane";
+
+        // When
+        List<SmartCommitCommand> commands = parser.parseCommands(commitMessage);
+
+        // Then
+        assertThat(commands).hasSize(3);
+        assertThat(commands).extracting(SmartCommitCommand::getType)
+            .containsExactlyInAnyOrder(
+                SmartCommitCommandType.TRANSITION,
+                SmartCommitCommandType.COMMENT,
+                SmartCommitCommandType.ASSIGN
+            );
+
+        // Verify the custom status was parsed correctly
+        SmartCommitCommand transitionCmd = commands.stream()
+            .filter(c -> c.getType() == SmartCommitCommandType.TRANSITION)
+            .findFirst()
+            .orElseThrow();
+        assertThat(transitionCmd.getValue()).isEqualTo("Testing");
+    }
+
+    @Test
+    void parseCommands_shouldPreserveExistingAliasesWithCustomStatuses() {
+        // Given - both alias and custom status in same message
+        String commitMessage = "PROJ-123 #close #comment Done and tested";
+
+        // When
+        List<SmartCommitCommand> commands = parser.parseCommands(commitMessage);
+
+        // Then
+        assertThat(commands).hasSize(2);
+        SmartCommitCommand transitionCmd = commands.stream()
+            .filter(c -> c.getType() == SmartCommitCommandType.TRANSITION)
+            .findFirst()
+            .orElseThrow();
+        assertThat(transitionCmd.getValue()).isEqualTo("Done"); // Alias still works
+    }
+
+    @Test
+    void containsSmartCommands_shouldReturnTrueForCustomStatus() {
+        // Given
+        String commitMessage = "PROJ-123 #testing";
+
+        // When
+        boolean contains = parser.containsSmartCommands(commitMessage);
+
+        // Then
+        assertThat(contains).isTrue();
+    }
+
+    @Test
+    void containsSmartCommands_shouldReturnTrueForMultiWordCustomStatus() {
+        // Given
+        String commitMessage = "PROJ-123 #pull-request-waiting";
+
+        // When
+        boolean contains = parser.containsSmartCommands(commitMessage);
+
+        // Then
+        assertThat(contains).isTrue();
+    }
+
+    @Test
+    void parseCommands_shouldHandleCaseInsensitiveCustomStatus() {
+        // Given - uppercase custom status
+        String commitMessage = "PROJ-123 #TESTING Ready for QA";
+
+        // When
+        List<SmartCommitCommand> commands = parser.parseCommands(commitMessage);
+
+        // Then
+        assertThat(commands).hasSize(1);
+        assertThat(commands.get(0).getValue()).isEqualTo("Testing");
+    }
+
+    @Test
+    void parseCommands_shouldHandleMixedCaseKebabStatus() {
+        // Given - mixed case kebab status
+        String commitMessage = "PROJ-123 #Pull-Request-WAITING";
+
+        // When
+        List<SmartCommitCommand> commands = parser.parseCommands(commitMessage);
+
+        // Then
+        assertThat(commands).hasSize(1);
+        assertThat(commands.get(0).getValue()).isEqualTo("Pull Request Waiting");
+    }
+
+    @Test
+    void parseCommands_shouldHandleStatusWithNumbers() {
+        // Given - status with numbers (e.g., "Phase 2" -> "phase-2")
+        String commitMessage = "PROJ-123 #phase-2";
+
+        // When
+        List<SmartCommitCommand> commands = parser.parseCommands(commitMessage);
+
+        // Then
+        assertThat(commands).hasSize(1);
+        assertThat(commands.get(0).getValue()).isEqualTo("Phase 2");
     }
 }

@@ -69,10 +69,23 @@ public class TaskStatusController {
         return ResponseEntity.ok(ApiResponse.success(statuses));
     }
 
-    
+
     @GetMapping("/status-templates")
     public ResponseEntity<ApiResponse<List<StatusTemplateResponse>>> getStatusTemplates() {
         List<StatusTemplateResponse> templates = taskStatusService.getStatusTemplates();
         return ResponseEntity.ok(ApiResponse.success(templates));
+    }
+
+    /**
+     * Apply a status template to a project.
+     * This replaces all existing statuses with the template's predefined statuses.
+     */
+    @PostMapping("/projects/{projectId}/statuses/template/{templateId}")
+    public ResponseEntity<ApiResponse<List<TaskStatusResponse>>> applyStatusTemplate(
+            @PathVariable Long projectId,
+            @PathVariable String templateId) {
+        Integer userId = SecurityUtils.getCurrentUserId();
+        List<TaskStatusResponse> statuses = taskStatusService.applyStatusTemplate(projectId, templateId, userId);
+        return ResponseEntity.ok(ApiResponse.success(statuses));
     }
 }
