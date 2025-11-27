@@ -35,5 +35,26 @@ public interface GitPullRequestRepository extends JpaRepository<GitPullRequest, 
 
     Long countByGitIntegrationId(Long integrationId);
 
-    Optional<GitPullRequest> findByGitIntegrationIdAndSourceBranch(Long integrationId, String sourceBranch);
+    /**
+     * Find all PRs for a branch, ordered by relevance:
+     * - OPEN/DRAFT PRs first (most relevant for active branches)
+     * - Then by most recently updated
+     * Use findTopByGitIntegrationIdAndSourceBranch() to get the most relevant one.
+     */
+    @Query("""
+        SELECT gpr FROM GitPullRequest gpr
+        WHERE gpr.gitIntegration.id = :integrationId AND gpr.sourceBranch = :sourceBranch
+        ORDER BY
+            CASE gpr.status
+                WHEN com.gradproject.taskmanager.modules.git.domain.enums.PullRequestStatus.OPEN THEN 0
+                WHEN com.gradproject.taskmanager.modules.git.domain.enums.PullRequestStatus.DRAFT THEN 1
+                WHEN com.gradproject.taskmanager.modules.git.domain.enums.PullRequestStatus.MERGED THEN 2
+                WHEN com.gradproject.taskmanager.modules.git.domain.enums.PullRequestStatus.CLOSED THEN 3
+            END,
+            gpr.updatedAt DESC NULLS LAST,
+            gpr.createdAt DESC
+        """)
+    List<GitPullRequest> findByGitIntegrationIdAndSourceBranchOrderByRelevance(
+            @Param("integrationId") Long integrationId,
+            @Param("sourceBranch") String sourceBranch);
 }

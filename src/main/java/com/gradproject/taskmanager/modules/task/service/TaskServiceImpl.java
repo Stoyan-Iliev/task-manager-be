@@ -23,6 +23,7 @@ import com.gradproject.taskmanager.shared.exception.ResourceNotFoundException;
 import com.gradproject.taskmanager.shared.exception.UnauthorizedException;
 import com.gradproject.taskmanager.shared.mapper.TaskMapper;
 import com.gradproject.taskmanager.shared.security.PermissionService;
+import com.gradproject.taskmanager.shared.util.HtmlSanitizer;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationEventPublisher;
@@ -49,6 +50,7 @@ public class TaskServiceImpl implements TaskService {
     private final ActivityLogService activityLogService;
     private final TaskWatcherService watcherService;
     private final ApplicationEventPublisher eventPublisher;
+    private final HtmlSanitizer htmlSanitizer;
 
     @Override
     @Transactional
@@ -75,13 +77,18 @@ public class TaskServiceImpl implements TaskService {
             throw new BusinessRuleViolationException("Status does not belong to this project");
         }
 
-        
+
         Task task = mapper.fromCreateRequest(request);
         task.setOrganization(project.getOrganization());
         task.setProject(project);
         task.setStatus(status);
         task.setReporter(user);
         task.setCreatedBy(user);
+
+        // Sanitize HTML in description to prevent XSS
+        if (task.getDescription() != null) {
+            task.setDescription(htmlSanitizer.sanitize(task.getDescription()));
+        }
 
         
         if (request.assigneeId() != null) {
@@ -179,9 +186,14 @@ public class TaskServiceImpl implements TaskService {
             throw new UnauthorizedException("You do not have permission to edit this task");
         }
 
-        
+
         mapper.updateFromRequest(request, task);
         task.setUpdatedBy(user);
+
+        // Sanitize HTML in description to prevent XSS
+        if (task.getDescription() != null) {
+            task.setDescription(htmlSanitizer.sanitize(task.getDescription()));
+        }
 
         task = taskRepository.save(task);
 
@@ -261,7 +273,7 @@ public class TaskServiceImpl implements TaskService {
 
     @Override
     @Transactional(readOnly = true)
-    public List<TaskSummary> listProjectTasks(Long projectId, Long statusId,
+    public List<TaskResponse> listProjectTasks(Long projectId, Long statusId,
                                                Integer assigneeId, Long sprintId, Integer userId) {
         log.debug("Listing tasks in project {} with filters: status={}, assignee={}, sprint={}",
                   projectId, statusId, assigneeId, sprintId);
@@ -272,16 +284,16 @@ public class TaskServiceImpl implements TaskService {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("User", userId));
 
-        
+
         if (!permissionService.canAccessProject(user, project)) {
             throw new UnauthorizedException("You do not have access to this project");
         }
 
-        
+
         List<Task> tasks = taskRepository.findByProjectWithFilters(projectId, statusId, assigneeId, sprintId);
 
         return tasks.stream()
-                .map(mapper::toSummary)
+                .map(this::buildTaskResponse)
                 .collect(Collectors.toList());
     }
 

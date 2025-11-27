@@ -99,11 +99,21 @@ public class SmartCommitServiceImpl implements SmartCommitService {
 
         List<CommandExecutionResult> results = new ArrayList<>();
 
-        for (SmartCommitParser.SmartCommitCommand command : commands) {
-            
-            
-            Integer executedBy = null;
+        // Look up user by commit author email
+        Integer executedBy = null;
+        if (commit.getAuthorEmail() != null) {
+            executedBy = userRepository.findByEmail(commit.getAuthorEmail())
+                .map(user -> user.getId())
+                .orElse(null);
 
+            if (executedBy != null) {
+                log.debug("Mapped commit author {} to user ID {}", commit.getAuthorEmail(), executedBy);
+            } else {
+                log.debug("No user found for commit author email: {}", commit.getAuthorEmail());
+            }
+        }
+
+        for (SmartCommitParser.SmartCommitCommand command : commands) {
             CommandExecutionResult result = executeCommand(
                 command.getType().name(),
                 command.getValue(),

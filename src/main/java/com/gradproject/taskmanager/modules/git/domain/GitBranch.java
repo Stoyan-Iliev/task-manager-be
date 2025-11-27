@@ -56,6 +56,10 @@ public class GitBranch {
     @JoinColumn(name = "created_by")
     private User createdBy;
 
+    /** Git provider username (e.g., GitHub login) - used for webhook-created branches */
+    @Column(name = "creator_username")
+    private String creatorUsername;
+
     @Column(name = "merged_at")
     private LocalDateTime mergedAt;
 

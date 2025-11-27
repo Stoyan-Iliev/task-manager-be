@@ -1,5 +1,6 @@
 package com.gradproject.taskmanager.modules.project.dto;
 
+import com.gradproject.taskmanager.modules.project.domain.ProjectType;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 
@@ -10,5 +11,7 @@ public record ProjectUpdateRequest(
     String name,
 
     @Size(max = 2000, message = "Description cannot exceed 2000 characters")
-    String description
+    String description,
+
+    ProjectType type
 ) {}

@@ -15,12 +15,14 @@ import org.mapstruct.ReportingPolicy;
 )
 public interface ProjectMapper {
 
-    
+
     @Mapping(target = "organizationId", source = "organization.id")
     @Mapping(target = "createdByUsername", source = "createdBy.username")
     @Mapping(target = "memberCount", expression = "java(project.getMembers() != null ? (long) project.getMembers().size() : 0L)")
     @Mapping(target = "statusCount", expression = "java(project.getStatuses() != null ? (long) project.getStatuses().size() : 0L)")
     @Mapping(target = "defaultStatus", source = "defaultStatus")
+    @Mapping(target = "type", source = "type")
+    @Mapping(target = "taskCount", ignore = true)
     ProjectResponse toResponse(Project project);
 
     

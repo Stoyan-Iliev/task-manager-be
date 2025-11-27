@@ -396,14 +396,23 @@ public class GitWebhookProcessorServiceImpl implements GitWebhookProcessorServic
             return;
         }
 
+        // Extract sender username from payload
+        String creatorUsername = null;
+        @SuppressWarnings("unchecked")
+        Map<String, Object> sender = (Map<String, Object>) payload.get("sender");
+        if (sender != null) {
+            creatorUsername = (String) sender.get("login");
+        }
+
         // Create new branch
         GitBranch branch = new GitBranch(integration, task, branchName);
         branch.setBaseBranch(baseBranch);
         branch.setStatus(BranchStatus.ACTIVE);
         branch.setCreatedFromUi(false);
+        branch.setCreatorUsername(creatorUsername);
 
         branch = branchRepository.save(branch);
-        log.info("Created branch: {} linked to task: {}", branchName, task.getKey());
+        log.info("Created branch: {} linked to task: {} (creator: {})", branchName, task.getKey(), creatorUsername);
     }
 
     private void handleGitHubDeleteEvent(GitWebhookEvent event, Map<String, Object> payload) {

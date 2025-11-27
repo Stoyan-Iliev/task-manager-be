@@ -32,13 +32,13 @@ public class TaskController {
 
     
     @GetMapping("/projects/{projectId}/tasks")
-    public ResponseEntity<ApiResponse<List<TaskSummary>>> listProjectTasks(
+    public ResponseEntity<ApiResponse<List<TaskResponse>>> listProjectTasks(
             @PathVariable Long projectId,
             @RequestParam(required = false) Long statusId,
             @RequestParam(required = false) Integer assigneeId,
             @RequestParam(required = false) Long sprintId) {
         Integer userId = SecurityUtils.getCurrentUserId();
-        List<TaskSummary> tasks = taskService.listProjectTasks(projectId, statusId, assigneeId, sprintId, userId);
+        List<TaskResponse> tasks = taskService.listProjectTasks(projectId, statusId, assigneeId, sprintId, userId);
         return ResponseEntity.ok(ApiResponse.success(tasks));
     }
 

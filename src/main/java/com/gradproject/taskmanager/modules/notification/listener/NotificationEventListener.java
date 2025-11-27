@@ -235,11 +235,47 @@ public class NotificationEventListener {
             return;
         }
 
+        // Track notified users to avoid duplicates
+        java.util.Set<Integer> notifiedUserIds = new java.util.HashSet<>();
+        int notificationCount = 0;
+
+        // Notify assignee (if not the actor)
+        if (task.getAssignee() != null && !task.getAssignee().getId().equals(actorId)) {
+            Notification notification = createNotification(
+                    task,
+                    task.getAssignee(),
+                    event.getType(),
+                    event.getTitle(),
+                    event.getMessage(),
+                    actor
+            );
+            sendWebSocketNotification(notification);
+            notifiedUserIds.add(task.getAssignee().getId());
+            notificationCount++;
+        }
+
+        // Notify reporter (if not the actor and not already notified)
+        if (task.getReporter() != null &&
+            !task.getReporter().getId().equals(actorId) &&
+            !notifiedUserIds.contains(task.getReporter().getId())) {
+            Notification notification = createNotification(
+                    task,
+                    task.getReporter(),
+                    event.getType(),
+                    event.getTitle(),
+                    event.getMessage(),
+                    actor
+            );
+            sendWebSocketNotification(notification);
+            notifiedUserIds.add(task.getReporter().getId());
+            notificationCount++;
+        }
+
+        // Notify watchers (excluding actor and already notified users)
         List<TaskWatcher> watchers = watcherRepo.findByTaskIdWithUser(taskId);
-
         for (TaskWatcher watcher : watchers) {
-
-            if (!watcher.getUser().getId().equals(actorId)) {
+            Integer watcherUserId = watcher.getUser().getId();
+            if (!watcherUserId.equals(actorId) && !notifiedUserIds.contains(watcherUserId)) {
                 Notification notification = createNotification(
                         task,
                         watcher.getUser(),
@@ -249,11 +285,13 @@ public class NotificationEventListener {
                         actor
                 );
                 sendWebSocketNotification(notification);
+                notifiedUserIds.add(watcherUserId);
+                notificationCount++;
             }
         }
 
-        log.debug("Notified {} watchers for task {} (type: {})",
-                watchers.size(),
+        log.debug("Notified {} users for task {} (type: {})",
+                notificationCount,
                 task.getKey(),
                 event.getType());
     }

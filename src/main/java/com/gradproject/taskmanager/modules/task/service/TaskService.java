@@ -23,7 +23,7 @@ public interface TaskService {
     TaskResponse getTaskByKey(Long orgId, String key, Integer userId);
 
     
-    List<TaskSummary> listProjectTasks(
+    List<TaskResponse> listProjectTasks(
         Long projectId,
         Long statusId,
         Integer assigneeId,

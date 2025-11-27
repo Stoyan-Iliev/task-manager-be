@@ -13,6 +13,7 @@ import com.gradproject.taskmanager.modules.project.repository.ProjectMemberRepos
 import com.gradproject.taskmanager.modules.project.repository.ProjectRepository;
 import com.gradproject.taskmanager.modules.project.repository.StatusTemplateRepository;
 import com.gradproject.taskmanager.modules.project.repository.TaskStatusRepository;
+import com.gradproject.taskmanager.modules.task.repository.TaskRepository;
 import com.gradproject.taskmanager.shared.exception.DuplicateResourceException;
 import com.gradproject.taskmanager.shared.exception.ResourceNotFoundException;
 import com.gradproject.taskmanager.shared.exception.UnauthorizedException;
@@ -39,6 +40,7 @@ public class ProjectServiceImpl implements ProjectService {
     private final StatusTemplateRepository statusTemplateRepository;
     private final OrganizationRepository organizationRepository;
     private final UserRepository userRepository;
+    private final TaskRepository taskRepository;
     private final PermissionService permissionService;
     private final ProjectMapper mapper;
     private final ObjectMapper objectMapper;
@@ -66,8 +68,8 @@ public class ProjectServiceImpl implements ProjectService {
             throw new DuplicateResourceException("Project", "key", projectKey);
         }
 
-        
-        Project project = new Project(organization, projectKey, request.name(), request.description(), user);
+
+        Project project = new Project(organization, projectKey, request.name(), request.description(), request.type(), user);
         project = projectRepository.save(project);
         log.debug("Project entity created with ID {}", project.getId());
 
@@ -83,7 +85,7 @@ public class ProjectServiceImpl implements ProjectService {
         projectMemberRepository.save(ownerMembership);
         log.debug("Added user {} as PROJECT_OWNER of project {}", userId, project.getId());
 
-        return mapper.toResponse(project);
+        return toResponseWithTaskCount(project);
     }
 
     
@@ -161,13 +163,16 @@ public class ProjectServiceImpl implements ProjectService {
             throw new UnauthorizedException("You don't have permission to edit this project");
         }
 
-        
+
         project.setName(request.name());
         project.setDescription(request.description());
+        if (request.type() != null) {
+            project.setType(request.type());
+        }
         project = projectRepository.save(project);
 
         log.info("Project {} updated successfully", projectId);
-        return mapper.toResponse(project);
+        return toResponseWithTaskCount(project);
     }
 
     @Override
@@ -199,12 +204,12 @@ public class ProjectServiceImpl implements ProjectService {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("User", userId));
 
-        
+
         if (!permissionService.canAccessProject(user, project)) {
             throw new UnauthorizedException("You don't have access to this project");
         }
 
-        return mapper.toResponse(project);
+        return toResponseWithTaskCount(project);
     }
 
     @Override
@@ -215,13 +220,13 @@ public class ProjectServiceImpl implements ProjectService {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("User", userId));
 
-        
+
         List<Project> allProjects = projectRepository.findByOrganizationId(organizationId);
 
-        
+
         return allProjects.stream()
                 .filter(project -> permissionService.canAccessProject(user, project))
-                .map(mapper::toResponse)
+                .map(this::toResponseWithTaskCount)
                 .collect(Collectors.toList());
     }
 
@@ -236,7 +241,26 @@ public class ProjectServiceImpl implements ProjectService {
         List<Project> projects = projectRepository.findByUserId(userId);
 
         return projects.stream()
-                .map(mapper::toResponse)
+                .map(this::toResponseWithTaskCount)
                 .collect(Collectors.toList());
+    }
+
+    private ProjectResponse toResponseWithTaskCount(Project project) {
+        ProjectResponse response = mapper.toResponse(project);
+        long taskCount = taskRepository.countByProjectId(project.getId());
+        return new ProjectResponse(
+            response.id(),
+            response.organizationId(),
+            response.key(),
+            response.name(),
+            response.type(),
+            response.description(),
+            response.defaultStatus(),
+            response.createdAt(),
+            response.createdByUsername(),
+            response.memberCount(),
+            response.statusCount(),
+            taskCount
+        );
     }
 }
