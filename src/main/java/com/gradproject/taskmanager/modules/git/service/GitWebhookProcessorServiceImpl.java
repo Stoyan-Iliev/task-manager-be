@@ -4,6 +4,7 @@ import com.gradproject.taskmanager.modules.git.domain.*;
 import com.gradproject.taskmanager.modules.git.domain.enums.BranchStatus;
 import com.gradproject.taskmanager.modules.git.domain.enums.GitProvider;
 import com.gradproject.taskmanager.modules.git.domain.enums.PullRequestStatus;
+import com.gradproject.taskmanager.modules.git.parser.BranchNameParser;
 import com.gradproject.taskmanager.modules.git.repository.GitBranchRepository;
 import com.gradproject.taskmanager.modules.git.repository.GitCommitRepository;
 import com.gradproject.taskmanager.modules.git.repository.GitPullRequestRepository;
@@ -34,6 +35,7 @@ public class GitWebhookProcessorServiceImpl implements GitWebhookProcessorServic
     private final GitBranchRepository branchRepository;
     private final GitLinkingService linkingService;
     private final SmartCommitService smartCommitService;
+    private final BranchNameParser branchNameParser;
 
     @Override
     @Async
@@ -371,10 +373,17 @@ public class GitWebhookProcessorServiceImpl implements GitWebhookProcessorServic
         String branchName = (String) payload.get("ref");
         String baseBranch = (String) payload.get("master_branch");
 
-        // Try to find task from branch name
-        Task task = linkingService.findTaskByKey(branchName, integration.getProject().getId());
+        // Extract task key from branch name (e.g., "TM-4-WorkLog-Implementation" -> "TM-4")
+        String taskKey = branchNameParser.extractTaskReference(branchName);
+        if (taskKey == null) {
+            log.debug("No task reference found in branch name: {}", branchName);
+            return;
+        }
+
+        // Try to find task using the extracted task key
+        Task task = linkingService.findTaskByKey(taskKey, integration.getProject().getId());
         if (task == null) {
-            log.debug("No task found for branch: {}", branchName);
+            log.debug("No task found for key: {} (from branch: {})", taskKey, branchName);
             return;
         }
 
