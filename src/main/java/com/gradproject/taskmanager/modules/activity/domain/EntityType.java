@@ -12,5 +12,6 @@ public enum EntityType {
     PROJECT_MEMBER,
     ORGANIZATION_MEMBER,
     TASK_WATCHER,
-    TASK_STATUS
+    TASK_STATUS,
+    WORK_LOG
 }

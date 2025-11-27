@@ -29,6 +29,7 @@ public class SmartCommitServiceImpl implements SmartCommitService {
     private final com.gradproject.taskmanager.modules.task.service.TaskService taskService;
     private final com.gradproject.taskmanager.modules.task.service.CommentService commentService;
     private final com.gradproject.taskmanager.modules.task.service.LabelService labelService;
+    private final com.gradproject.taskmanager.modules.task.service.WorkLogService workLogService;
     private final com.gradproject.taskmanager.modules.project.repository.TaskStatusRepository taskStatusRepository;
     private final com.gradproject.taskmanager.modules.task.repository.LabelRepository labelRepository;
     private final com.gradproject.taskmanager.modules.auth.repository.UserRepository userRepository;
@@ -294,22 +295,49 @@ public class SmartCommitServiceImpl implements SmartCommitService {
         }
     }
 
-    
     private CommandExecutionResult executeTimeLog(Task task, String timeValue, Integer executedBy) {
-        
-        
-        
-        
-        
+        try {
+            // Parse time value to minutes
+            int minutes = smartCommitParser.parseTimeToMinutes(timeValue);
 
-        log.warn("Time log command not yet implemented for task {}", task.getKey());
-        return new CommandExecutionResult(
-            "TIME",
-            timeValue,
-            false,
-            "Time log command not yet implemented (requires WorkLogService integration)",
-            null
-        );
+            if (minutes <= 0) {
+                return new CommandExecutionResult(
+                        "TIME",
+                        timeValue,
+                        false,
+                        "Invalid time value: " + timeValue + " (parsed to " + minutes + " minutes)",
+                        null
+                );
+            }
+
+            // Use system user ID (1) if executedBy is null
+            Integer userId = executedBy != null ? executedBy : 1;
+
+            // Log time via smart commit (description includes the original time format)
+            String description = "Logged via smart commit: " + timeValue;
+            workLogService.logTimeFromSmartCommit(task.getId(), minutes, description, userId);
+
+            log.info("Logged {} minutes ({}) to task {} via smart commit",
+                    minutes, timeValue, task.getKey());
+
+            return new CommandExecutionResult(
+                    "TIME",
+                    timeValue,
+                    true,
+                    null,
+                    null
+            );
+
+        } catch (Exception e) {
+            log.error("Error logging time {} to task {}", timeValue, task.getKey(), e);
+            return new CommandExecutionResult(
+                    "TIME",
+                    timeValue,
+                    false,
+                    e.getMessage(),
+                    null
+            );
+        }
     }
 
     private CommandExecutionResult executeAssign(Task task, String username, Integer executedBy) {
