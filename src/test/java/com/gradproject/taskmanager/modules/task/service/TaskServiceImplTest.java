@@ -277,18 +277,19 @@ class TaskServiceImplTest {
 
     @Test
     void listProjectTasks_success() {
-        
+
         when(projectRepository.findById(1L)).thenReturn(Optional.of(project));
         when(userRepository.findById(1)).thenReturn(Optional.of(user));
         when(permissionService.canAccessProject(user, project)).thenReturn(true);
         when(taskRepository.findByProjectWithFilters(1L, null, null, null))
                 .thenReturn(Arrays.asList(task));
-        when(mapper.toSummary(task)).thenReturn(createTaskSummary());
+        when(mapper.toResponse(task)).thenReturn(createTaskResponse());
+        when(taskRepository.countSubtasks(1L)).thenReturn(0L);
 
-        
-        List<TaskSummary> tasks = taskService.listProjectTasks(1L, null, null, null, 1);
 
-        
+        List<TaskResponse> tasks = taskService.listProjectTasks(1L, null, null, null, 1);
+
+
         assertThat(tasks).hasSize(1);
     }
 
@@ -689,7 +690,7 @@ class TaskServiceImplTest {
         return new TaskSummary(
                 1L, "TEST-1", "Test Task",
                 new TaskStatusSummary(1L, "To Do", "#808080", "TODO"),
-                null, TaskPriority.MEDIUM, false
+                null, TaskType.TASK, TaskPriority.MEDIUM, false
         );
     }
 }

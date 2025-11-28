@@ -98,18 +98,20 @@ class ProjectServiceImplTest {
         testProject.setCreatedBy(testUser);
         testProject.setCreatedAt(LocalDateTime.now());
 
-        createRequest = new ProjectCreateRequest("TEST", "Test Project", "Test Description", null);
-        updateRequest = new ProjectUpdateRequest("Updated Project", "Updated Description");
+        createRequest = new ProjectCreateRequest("TEST", "Test Project", ProjectType.SOFTWARE, "Test Description", null);
+        updateRequest = new ProjectUpdateRequest("Updated Project", "Updated Description", null);
 
         projectResponse = new ProjectResponse(
                 1L,
                 1L,
                 "TEST",
                 "Test Project",
+                ProjectType.SOFTWARE,
                 "Test Description",
                 null,
                 LocalDateTime.now(),
                 "testuser",
+                0L,
                 0L,
                 0L
         );
@@ -161,7 +163,7 @@ class ProjectServiceImplTest {
         when(projectMemberRepository.save(any(ProjectMember.class))).thenReturn(new ProjectMember());
         when(mapper.toResponse(any(Project.class))).thenReturn(projectResponse);
 
-        ProjectCreateRequest requestWithTemplate = new ProjectCreateRequest("TEST", "Test Project", "Test Description", 1L);
+        ProjectCreateRequest requestWithTemplate = new ProjectCreateRequest("TEST", "Test Project", ProjectType.SOFTWARE, "Test Description", 1L);
 
         
         ProjectResponse result = projectService.createProject(1L, requestWithTemplate, 1);

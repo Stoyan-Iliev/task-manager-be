@@ -131,6 +131,13 @@
       <version>8.5.7</version>
     </dependency>
 
+    <!-- jsoup for HTML sanitization (XSS prevention) -->
+    <dependency>
+      <groupId>org.jsoup</groupId>
+      <artifactId>jsoup</artifactId>
+      <version>1.18.1</version>
+    </dependency>
+
     <!-- Test -->
     <dependency>
       <groupId>org.springframework.boot</groupId>

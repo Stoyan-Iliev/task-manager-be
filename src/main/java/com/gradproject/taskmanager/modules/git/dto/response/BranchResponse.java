@@ -9,19 +9,14 @@ public record BranchResponse(
     Long id,
     Long gitIntegrationId,
     Long taskId,
-    String taskKey,  
+    String taskKey,
     String branchName,
-    String branchRef,
+    String branchUrl,
     BranchStatus status,
-    Boolean createdFromUi,
-    String headCommitSha,
     String baseBranch,
+    String headCommitSha,
     LocalDateTime createdAt,
     String createdByUsername,
     LocalDateTime mergedAt,
-    LocalDateTime deletedAt,
-
-    
-    Integer pullRequestNumber,
-    String pullRequestStatus
+    LocalDateTime deletedAt
 ) {}

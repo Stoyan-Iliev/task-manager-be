@@ -4,13 +4,11 @@ import com.gradproject.taskmanager.modules.auth.domain.User;
 import com.gradproject.taskmanager.modules.auth.repository.UserRepository;
 import com.gradproject.taskmanager.modules.git.domain.GitBranch;
 import com.gradproject.taskmanager.modules.git.domain.GitIntegration;
-import com.gradproject.taskmanager.modules.git.domain.GitPullRequest;
 import com.gradproject.taskmanager.modules.git.domain.enums.BranchStatus;
 import com.gradproject.taskmanager.modules.git.dto.request.CreateBranchRequest;
 import com.gradproject.taskmanager.modules.git.dto.response.BranchResponse;
 import com.gradproject.taskmanager.modules.git.repository.GitBranchRepository;
 import com.gradproject.taskmanager.modules.git.repository.GitIntegrationRepository;
-import com.gradproject.taskmanager.modules.git.repository.GitPullRequestRepository;
 import com.gradproject.taskmanager.modules.project.domain.Project;
 import com.gradproject.taskmanager.modules.project.repository.ProjectRepository;
 import com.gradproject.taskmanager.modules.task.domain.Task;
@@ -26,7 +24,6 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.List;
-import java.util.Optional;
 
 @Slf4j
 @Service
@@ -38,7 +35,6 @@ public class GitBranchServiceImpl implements GitBranchService {
     private final TaskRepository taskRepository;
     private final ProjectRepository projectRepository;
     private final UserRepository userRepository;
-    private final GitPullRequestRepository gitPullRequestRepository;
     private final BranchMapper branchMapper;
     private final PermissionService permissionService;
 
@@ -119,7 +115,7 @@ public class GitBranchServiceImpl implements GitBranchService {
 
         List<GitBranch> branches = gitBranchRepository.findByTaskId(taskId);
         return branches.stream()
-            .map(this::toBranchResponseWithPR)
+            .map(branchMapper::toResponse)
             .toList();
     }
 
@@ -139,7 +135,7 @@ public class GitBranchServiceImpl implements GitBranchService {
 
         List<GitBranch> branches = gitBranchRepository.findByProjectAndStatus(projectId, BranchStatus.ACTIVE);
         return branches.stream()
-            .map(this::toBranchResponseWithPR)
+            .map(branchMapper::toResponse)
             .toList();
     }
 
@@ -159,7 +155,7 @@ public class GitBranchServiceImpl implements GitBranchService {
 
         List<GitBranch> branches = gitBranchRepository.findByGitIntegrationId(integrationId);
         return branches.stream()
-            .map(this::toBranchResponseWithPR)
+            .map(branchMapper::toResponse)
             .toList();
     }
 
@@ -177,7 +173,7 @@ public class GitBranchServiceImpl implements GitBranchService {
             throw new UnauthorizedException("You don't have permission to view this branch");
         }
 
-        return toBranchResponseWithPR(branch);
+        return branchMapper.toResponse(branch);
     }
 
     @Override
@@ -218,41 +214,7 @@ public class GitBranchServiceImpl implements GitBranchService {
 
         List<GitBranch> branches = gitBranchRepository.findActiveBranchesByTask(taskId);
         return branches.stream()
-            .map(this::toBranchResponseWithPR)
+            .map(branchMapper::toResponse)
             .toList();
-    }
-
-    /**
-     * Convert GitBranch to BranchResponse with associated PR info
-     */
-    private BranchResponse toBranchResponseWithPR(GitBranch branch) {
-        BranchResponse base = branchMapper.toResponse(branch);
-
-        // Find associated pull request if any
-        Optional<GitPullRequest> pr = gitPullRequestRepository
-            .findByGitIntegrationIdAndSourceBranch(branch.getGitIntegration().getId(), branch.getBranchName());
-
-        if (pr.isPresent()) {
-            return new BranchResponse(
-                base.id(),
-                base.gitIntegrationId(),
-                base.taskId(),
-                base.taskKey(),
-                base.branchName(),
-                base.branchRef(),
-                base.status(),
-                base.createdFromUi(),
-                base.headCommitSha(),
-                base.baseBranch(),
-                base.createdAt(),
-                base.createdByUsername(),
-                base.mergedAt(),
-                base.deletedAt(),
-                pr.get().getPrNumber(),
-                pr.get().getStatus().toString()
-            );
-        }
-
-        return base;
     }
 }

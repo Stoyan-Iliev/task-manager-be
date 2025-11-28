@@ -17,6 +17,7 @@ import com.gradproject.taskmanager.shared.exception.ResourceNotFoundException;
 import com.gradproject.taskmanager.shared.exception.UnauthorizedException;
 import com.gradproject.taskmanager.shared.mapper.CommentMapper;
 import com.gradproject.taskmanager.shared.security.PermissionService;
+import com.gradproject.taskmanager.shared.util.HtmlSanitizer;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationEventPublisher;
@@ -41,6 +42,7 @@ public class CommentService {
     private final ActivityLogService activityLogService;
     private final TaskWatcherService watcherService;
     private final ApplicationEventPublisher eventPublisher;
+    private final HtmlSanitizer htmlSanitizer;
 
     
     @Transactional
@@ -60,6 +62,11 @@ public class CommentService {
         Comment comment = mapper.fromRequest(request);
         comment.setTask(task);
         comment.setAuthor(user);
+
+        // Sanitize HTML in content to prevent XSS
+        if (comment.getContent() != null) {
+            comment.setContent(htmlSanitizer.sanitize(comment.getContent()));
+        }
 
         
         if (request.isReply()) {
@@ -133,8 +140,10 @@ public class CommentService {
             throw new UnauthorizedException("You can only edit your own comments");
         }
 
-        
-        comment.setContent(request.getTrimmedContent());
+
+        // Sanitize HTML in content to prevent XSS
+        String sanitizedContent = htmlSanitizer.sanitize(request.getTrimmedContent());
+        comment.setContent(sanitizedContent);
         comment = commentRepository.save(comment);
 
         log.info("User {} edited comment {}", userId, commentId);

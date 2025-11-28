@@ -39,7 +39,11 @@ public class Project {
     @Column(columnDefinition = "TEXT")
     private String description;
 
-    
+    @Enumerated(EnumType.STRING)
+    @Column(name = "type", nullable = false)
+    private ProjectType type = ProjectType.SOFTWARE;
+
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "default_status_id")
     private TaskStatus defaultStatus;
@@ -81,11 +85,12 @@ public class Project {
 
     public Project() {}
 
-    public Project(Organization organization, String key, String name, String description, User createdBy) {
+    public Project(Organization organization, String key, String name, String description, ProjectType type, User createdBy) {
         this.organization = organization;
         this.key = key.toUpperCase();
         this.name = name;
         this.description = description;
+        this.type = type != null ? type : ProjectType.SOFTWARE;
         this.createdBy = createdBy;
     }
 }

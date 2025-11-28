@@ -1,6 +1,10 @@
 spring:
   application:
     name: jira-backend
+  jackson:
+    time-zone: Europe/Sofia
+    serialization:
+      write-dates-as-timestamps: false
   datasource:
     url: jdbc:postgresql://localhost:5432/taskmanager
     driver-class-name: org.postgresql.Driver
