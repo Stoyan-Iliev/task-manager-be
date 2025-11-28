@@ -4,7 +4,6 @@ import com.gradproject.taskmanager.modules.project.domain.StatusCategory;
 
 import java.time.LocalDateTime;
 
-
 public record TaskStatusResponse(
     Long id,
     Long projectId,
