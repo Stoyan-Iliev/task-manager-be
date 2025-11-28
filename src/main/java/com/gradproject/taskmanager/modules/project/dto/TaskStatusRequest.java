@@ -6,7 +6,6 @@ import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 
-
 public record TaskStatusRequest(
     @NotBlank(message = "Status name is required")
     @Size(min = 2, max = 100, message = "Status name must be between 2 and 100 characters")
