@@ -15,7 +15,6 @@ import org.mapstruct.ReportingPolicy;
 )
 public interface ProjectMapper {
 
-
     @Mapping(target = "organizationId", source = "organization.id")
     @Mapping(target = "createdByUsername", source = "createdBy.username")
     @Mapping(target = "memberCount", expression = "java(project.getMembers() != null ? (long) project.getMembers().size() : 0L)")
@@ -24,25 +23,21 @@ public interface ProjectMapper {
     @Mapping(target = "type", source = "type")
     @Mapping(target = "taskCount", ignore = true)
     ProjectResponse toResponse(Project project);
-
     
     @Mapping(target = "id", source = "id")
     @Mapping(target = "name", source = "name")
     @Mapping(target = "color", source = "color")
     @Mapping(target = "category", source = "category")
     TaskStatusSummary toStatusSummary(TaskStatus status);
-
     
     @Mapping(target = "projectId", source = "project.id")
     TaskStatusResponse toStatusResponse(TaskStatus status);
-
     
     @Mapping(target = "projectId", source = "project.id")
     @Mapping(target = "createdByUsername", source = "createdBy.username")
     @Mapping(target = "completedByUsername", source = "completedBy.username")
     @Mapping(target = "metrics", ignore = true)
     SprintResponse toSprintResponse(Sprint sprint);
-
     
     @Mapping(target = "userId", source = "user.id")
     @Mapping(target = "username", source = "user.username")
@@ -52,7 +47,6 @@ public interface ProjectMapper {
     @Mapping(target = "avatarUrl", source = "user.avatarUrl")
     @Mapping(target = "addedByUsername", source = "addedBy.username")
     ProjectMemberResponse toMemberResponse(ProjectMember member);
-
     
     StatusTemplateResponse toTemplateResponse(StatusTemplate template);
 }
